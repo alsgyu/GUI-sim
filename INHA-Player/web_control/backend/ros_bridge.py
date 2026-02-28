@@ -17,10 +17,12 @@ except ImportError:
     ROS_AVAILABLE = False
     class Node: pass # Dummy class
 
-# 웹 서버와 ROS 2 시스템 간의 브릿지 역할을 하는 클래스 - 로봇의 상태(위치, 배터리 등)를 수신하고, 웹에서 내린 명령을 ROS 토픽으로 발행
+# 웹 서버와 ROS 2 시스템 간의 브릿지 역할을 하는 클래스
+# 시뮬 환경에서는 SSH 없이 ROS2 토픽으로 직접 전략 배포
 class ROSBridge(Node):
     def __init__(self):
         self.robot_status = {} # 로봇들의 현재 상태 저장소
+        self.strat_pubs = {}   # 퍼블리셔 캐시: {topic: publisher}
         
         if ROS_AVAILABLE:
             super().__init__('web_bridge_node')
@@ -40,25 +42,49 @@ class ROSBridge(Node):
     def get_status(self):
         return self.robot_status
 
-    # 전략 XML을 ROS 토픽으로 발행하여 로봇에게 전송
+    # -----------------------------------------------------------------------------------------
+    # 전략 XML을 ROS 토픽으로 발행하여 시뮬 brain에게 전송
+    #
+    # 시뮬에서 brain은 ns:=robot0 처럼 namespace를 붙여 실행됨.
+    # 따라서 실제 토픽은 /robot0/strategy/deploy 형태가 됨.
+    #
+    # robot_id 예시:
+    #   "all"    → 등록된 모든 시뮬 로봇에 broadcast
+    #   "robot0" → /robot0/strategy/deploy 에만 발행
+    # -----------------------------------------------------------------------------------------
     def publish_strategy(self, robot_id, xml_content):
-        if ROS_AVAILABLE:
-            topic = f"/{robot_id}/strategy/deploy"
-            
-            # 퍼블리셔가 없으면 생성
-            if not hasattr(self, 'strat_pubs'):
-                self.strat_pubs = {}
-            
-            if robot_id not in self.strat_pubs:
-                self.strat_pubs[robot_id] = self.create_publisher(String, topic, 10)
-            
+        if not ROS_AVAILABLE:
+            print(f"[SIM] Deployed strategy to {robot_id} (ROS Not Available)")
+            return False
+
+        # 대상 로봇 목록 결정
+        # "all" 이면 현재 알려진 시뮬 로봇 네임스페이스 전체에 발행
+        SIM_NAMESPACES = ["robot0", "robot1", "robot2", "robot3", "robot4"]
+        
+        if robot_id == "all":
+            targets = SIM_NAMESPACES
+        else:
+            # robot_id가 이미 네임스페이스 형태(robot0 등)인 경우 그대로 사용
+            targets = [robot_id]
+
+        success_count = 0
+        for ns in targets:
+            topic = f"/{ns}/strategy/deploy"
+
+            # 퍼블리셔가 없으면 새로 생성 (캐시)
+            if topic not in self.strat_pubs:
+                self.strat_pubs[topic] = self.create_publisher(String, topic, 10)
+                print(f"[ROS] Created publisher for {topic}")
+                # 퍼블리셔가 구독자를 찾을 시간 확보
+                time.sleep(0.2)
+
             msg = String()
             msg.data = xml_content
-            self.strat_pubs[robot_id].publish(msg)
+            self.strat_pubs[topic].publish(msg)
             print(f"[ROS] Published strategy to {topic}")
-        else:
-            # 시뮬레이션 모드에서는 로그만 출력
-            print(f"[SIM] Deployed strategy to {robot_id} (ROS Not Available)")
+            success_count += 1
+
+        return success_count > 0
 
 # ROS 초기화 함수
 def init_ros():

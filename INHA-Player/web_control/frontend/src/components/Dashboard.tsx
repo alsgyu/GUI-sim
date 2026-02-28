@@ -11,6 +11,16 @@ import StateHistoryBoard, { StateLog } from './StateHistoryBoard';
 import GameLogBoard, { GameLog } from './GameLogBoard';
 import { PENALTY_MAP } from '../constants/PenaltyTypes';
 
+// =========================================================
+// 시뮬레이션 모드 플래그
+// true  → Isaac Sim 환경: SSH 없이 모든 로봇 카드를 연결된 것으로 표시
+// false → 실제 로봇 환경: SSH 연결 후 CONTROL 버튼 활성화
+// =========================================================
+const SIM_MODE = true;
+
+// 시뮬 로봇 네임스페이스 목록 (sim_start.sh의 ns:=robot0 과 일치)
+const SIM_ROBOT_IDS = ['robot0', 'robot1', 'robot2', 'robot3', 'robot4'];
+
 // 대시보드 컴포넌트 -> 로봇 상태 카드와 SSH 명령 패널을 통합하여 보여주는 메인 화면
 const DashboardComp = () => {
     // 1. 로봇 상태 데이터 (웹소켓 수신)
@@ -34,8 +44,10 @@ const DashboardComp = () => {
     };
     const [gameInfo, setGameInfo] = useState<GameInfo | null>(defaultGameInfo);
 
-    // 2. SSH 연결 상태
-    const [connectedRobots, setConnectedRobots] = useState<string[]>([]);
+    // 2. SSH 연결 상태 (SIM_MODE에서는 모든 로봇을 항상 연결됨으로 처리)
+    const [connectedRobots, setConnectedRobots] = useState<string[]>(
+        SIM_MODE ? SIM_ROBOT_IDS : []
+    );
 
     // 3. 현재 제어 패널이 열려있는 로봇 ID
     const [controlTarget, setControlTarget] = useState<string | null>(null);
@@ -251,7 +263,7 @@ const DashboardComp = () => {
             <Grid container spacing={3}>
                 {/* 2. 로봇 상태 카드 목록 */}
                 {/* 연결된 로봇들의 개별 상태(배터리, 역할, 전략)를 카드 형태로 나열 */}
-                {['robot1', 'robot2', 'robot3', 'robot4', 'robot5'].map(id => {
+                {(SIM_MODE ? SIM_ROBOT_IDS : ['robot1', 'robot2', 'robot3', 'robot4', 'robot5']).map(id => {
                     const robot = robots[id] || {};
                     const isConnected = connectedRobots.includes(id);
                     // 역할 뱃지 & 상세 상태
@@ -326,21 +338,21 @@ const DashboardComp = () => {
 
 
                                 {/* 연결 및 제어 버튼 */}
-                                {/* 로봇과 아직 SSH 연결이 안되어 있으면 CONNECT, 되어 있으면 CONTROL 버튼 표시 */}
-                                {isConnected ? (
+                                {/* SIM_MODE: 항상 CONTROL 버튼 표시 / 실제 모드: SSH 연결 후 CONTROL */}
+                                {(SIM_MODE || isConnected) ? (
                                     <Button
                                         variant="contained"
-                                        color="success" // 초록색 버튼
+                                        color="success"
                                         fullWidth
                                         size="small"
                                         onClick={() => setControlTarget(id)}
                                     >
-                                        CONTROL
+                                        {SIM_MODE ? 'CONTROL (SIM)' : 'CONTROL'}
                                     </Button>
                                 ) : (
                                     <Button
                                         variant="contained"
-                                        color="primary" // 파란색 버튼
+                                        color="primary"
                                         fullWidth
                                         size="small"
                                         onClick={() => {
