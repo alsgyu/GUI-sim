@@ -59,6 +59,12 @@ void GameControllerNode::init()
         throw runtime_error(strerror(errno));
     }
 
+    int opt = 1;
+    setsockopt(_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+#ifdef SO_REUSEPORT
+    setsockopt(_socket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+#endif
+
     // 初始化地址
     sockaddr_in addr;
     addr.sin_family = AF_INET;

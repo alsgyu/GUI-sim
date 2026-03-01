@@ -253,7 +253,7 @@ const DashboardComp = () => {
                 {/* 연결된 로봇들의 개별 상태(배터리, 역할, 전략)를 카드 형태로 나열 */}
                 {['robot1', 'robot2', 'robot3', 'robot4', 'robot5'].map(id => {
                     const robot = robots[id] || {};
-                    const isConnected = connectedRobots.includes(id);
+                    const isConnected = connectedRobots.includes(id) || (robot.pps && robot.pps > 0);
                     // 역할 뱃지 & 상세 상태
                     const roleLabel = robot.role || (id === 'robot1' ? 'GK' : 'Field');
 
