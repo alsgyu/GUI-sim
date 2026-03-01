@@ -55,11 +55,20 @@ def handle_configuration(context, *args, **kwargs):
     if disableCom in ['true', 'True', '1']:
         config['enable_com'] = False
 
+    # player_id: 각 로봇을 다른 번호로 실행 (GC 초록불 여러 개)
+    player_id = context.perform_substitution(LaunchConfiguration('player_id'))
+    if player_id != '':
+        config['game.player_id'] = int(player_id)
+
+    # ns 인자: 빈 문자열이면 namespace 없이 실행, 값이 있으면 해당 namespace로 실행
+    ns = context.perform_substitution(LaunchConfiguration('ns'))
+
     return [
         Node(
             package ='brain',
             executable='brain_node',
             output='screen',
+            namespace=ns,
             parameters=[
                 config_file,
                 config_local_file,
@@ -105,5 +114,15 @@ def generate_launch_description():
             default_value='false',
             description='통신 기능을 강제로 비활성화'
         ),
-        OpaqueFunction(function=handle_configuration) # handle_configuration 함수로 전달하여 추가 설정을 처리
+        DeclareLaunchArgument(
+            'ns',
+            default_value='',
+            description='ROS2 namespace. e.g) ns:=robot1 → /robot1/strategy/deploy'
+        ),
+        DeclareLaunchArgument(
+            'player_id',
+            default_value='',
+            description='로봇 선수 번호 (1~5). 비어있으면 config.yaml 값 사용'
+        ),
+        OpaqueFunction(function=handle_configuration)
     ])
