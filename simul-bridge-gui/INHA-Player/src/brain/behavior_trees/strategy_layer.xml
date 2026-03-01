@@ -11,8 +11,9 @@
             <TacticSelector active_tactic="{active_tactic}"/> 
             
             <Sequence>
-                <TacticPressing/>      <!-- Chase Parameters -->
-                <TacticLineDefense/>   <!-- Defense Line -->
+                <AlwaysSuccess/>
+                <!-- <TacticPressing/>      Chase Parameters -->
+                <!-- <TacticLineDefense/>   Defense Line -->
                 <!-- <TacticFinishing/>     Kick Parameters -->
             </Sequence>
 
