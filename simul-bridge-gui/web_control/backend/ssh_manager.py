@@ -52,6 +52,16 @@ class SSHManager:
     # 원격 명령 실행 -> 특정 로봇에게 기본적인 리눅스 쉘 명령어를 전송하고 결과를 받아오기
     def execute_command(self, robot_id, command):
         if robot_id not in self.clients:
+            # Fallback to local execution if no clients are connected (Simulation mode)
+            if not self.clients:
+                self.logger.warning(f"[SSH Cmd] No SSH clients connected. Executing locally (Sim Mode): {command}")
+                import subprocess
+                try:
+                    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                    return result.stdout, result.stderr
+                except Exception as e:
+                    self.logger.error(f"[SSH Error] Local execution failed: {e}")
+                    return None, str(e)
             return None, "Not connected"
         
         try:
@@ -205,15 +215,24 @@ except Exception as e:
 
     # 시스템 로그 가져오기 -> 'tail' 명령어로 launcher.log 파일의 뒷부분만 짤라서 가져온다
     def fetch_log(self, robot_id, lines=50):
+        # Use dynamic CD chain to find launcher.log in the correct workspace
+        dynamic_cd = 'cd /home/booster/Workspace/GUI/INHA-Player 2>/dev/null || cd ~/Workspace/GUI-sim/INHA-Player 2>/dev/null || cd ~/Workspace/INHA/simul-bridge-gui/INHA-Player 2>/dev/null'
+        cmd = f"{dynamic_cd}; tail -n {lines} launcher.log"
+
         if robot_id not in self.clients:
+            if not self.clients:
+                 import subprocess
+                 try:
+                     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+                     if not result.stdout and result.stderr:
+                         return f"[Log Error] {result.stderr}"
+                     return result.stdout if result.stdout else "[Log] Empty"
+                 except Exception as e:
+                     return f"[SSH Error] Local local fetch failed: {e}"
             return "Not connected"
             
         try:
             client = self.clients[robot_id]
-            
-            # Use dynamic CD chain to find launcher.log in the correct workspace
-            dynamic_cd = 'cd /home/booster/Workspace/GUI/INHA-Player 2>/dev/null || cd ~/Workspace/GUI-sim/INHA-Player 2>/dev/null || cd ~/Workspace/INHA/simul-bridge-gui/INHA-Player 2>/dev/null'
-            cmd = f"{dynamic_cd}; tail -n {lines} launcher.log"
             
             stdin, stdout, stderr = client.exec_command(cmd)
             
