@@ -114,26 +114,8 @@ def deploy_strategy_endpoint(data: StrategyDeploy):
     
     # 연결된 로봇이 없으면 경고 출력
     if not connected_robots:
-         print("[WARN] No robot connected via SSH. Assuming Simulation mode.")
-         # 시뮬레이션: game.xml 직접 덮어쓰기 (src 원본 및 install 실행경로 모두)
-         src_xml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../INHA-Player/src/brain/behavior_trees/game.xml")
-         install_xml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../INHA-Player/install/brain/share/brain/behavior_trees/game.xml")
-         
-         try:
-             # src 반영 (소스코드 보존용)
-             with open(src_xml_path, "w") as f:
-                 f.write(xml_content)
-                 
-             # install 반영 (실제 시뮬레이션 노드가 즉시 읽어들일 수 있도록 함)
-             if os.path.exists(os.path.dirname(install_xml_path)):
-                 with open(install_xml_path, "w") as f:
-                     f.write(xml_content)
-             
-             print(f"[SIM] Deployed directly to {src_xml_path} and {install_xml_path}")
-             return {"status": "success", "message": "Strategy deployed to simulation (game.xml). Please restart sim_start.sh to apply."}
-         except Exception as e:
-             print(f"[SIM] Failed to write game.xml: {e}")
-             return {"status": "error", "message": f"Strategy deployment failed in simulation: {e}"}
+         print("[WARN] No connecting robots via SSH. Simulation mode deployment is not supported because hot-swapping behavior trees dynamically via GUI is disabled in the current INHA-Player C++ architecture.")
+         return {"status": "error", "message": "Simulation GUI deployment is disabled to prevent crashing INHA-Player. Please edit the behavior trees directly in src/brain/behavior_trees/."}
 
     # 3. 대상 로봇들에게 전략 배포
     success_count = 0
