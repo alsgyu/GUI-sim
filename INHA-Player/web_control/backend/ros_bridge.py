@@ -59,7 +59,7 @@ class ROSBridge(Node):
 
         # 대상 로봇 목록 결정
         # "all" 이면 현재 알려진 시뮬 로봇 네임스페이스 전체에 발행
-        SIM_NAMESPACES = ["robot0", "robot1", "robot2", "robot3", "robot4"]
+        SIM_NAMESPACES = ["robot1", "robot2", "robot3"]
         
         if robot_id == "all":
             targets = SIM_NAMESPACES

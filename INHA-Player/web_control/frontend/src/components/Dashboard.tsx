@@ -19,7 +19,7 @@ import { PENALTY_MAP } from '../constants/PenaltyTypes';
 const SIM_MODE = true;
 
 // 시뮬 로봇 네임스페이스 목록 (sim_start.sh의 ns:=robot0 과 일치)
-const SIM_ROBOT_IDS = ['robot0', 'robot1', 'robot2', 'robot3', 'robot4'];
+const SIM_ROBOT_IDS = ['robot1', 'robot2', 'robot3'];
 
 // 대시보드 컴포넌트 -> 로봇 상태 카드와 SSH 명령 패널을 통합하여 보여주는 메인 화면
 const DashboardComp = () => {
