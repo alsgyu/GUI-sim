@@ -1,7 +1,0 @@
-streamlit
-altair
-pandas
-numpy
-firebase-admin
-streamlit-keyup
-streamlit-joystick
