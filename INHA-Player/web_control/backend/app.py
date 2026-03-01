@@ -265,8 +265,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 else:
                     status["robots"] = {}
 
-            # GameController 상태 (gc_monitor는 시뮬/실제 모두 UDP 3838 수신)
-            status["game_info"] = gc_monitor.get_status()
+            # GameController 상태
+            # SIM_MODE: game_controller ROS 노드가 port 3838을 점유하므로 ROS 토픽으로 수신
+            if SIM_MODE and ros_bridge_node and ros_bridge_node.is_gc_available():
+                status["game_info"] = ros_bridge_node.get_gc_status()
+            else:
+                status["game_info"] = gc_monitor.get_status()
             
             await websocket.send_json(status)
             await asyncio.sleep(0.5)
