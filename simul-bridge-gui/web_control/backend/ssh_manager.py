@@ -50,11 +50,11 @@ class SSHManager:
             return False
 
     # 원격 명령 실행 -> 특정 로봇에게 기본적인 리눅스 쉘 명령어를 전송하고 결과를 받아오기
-    def execute_command(self, robot_id, command):
-        if robot_id not in self.clients:
-            # Fallback to local execution if no clients are connected (Simulation mode)
-            if not self.clients:
-                self.logger.warning(f"[SSH Cmd] No SSH clients connected. Executing locally (Sim Mode): {command}")
+    def execute_command(self, robot_id, command, force_local=False):
+        if robot_id not in self.clients or force_local:
+            # Fallback to local execution if no clients are connected (Simulation mode) or force_local is True
+            if not self.clients or force_local:
+                self.logger.warning(f"[SSH Cmd] Executing locally (Sim Mode / force_local): {command}")
                 import subprocess
                 try:
                     result = subprocess.run(command, shell=True, capture_output=True, text=True)
@@ -214,13 +214,13 @@ except Exception as e:
             return False, f"Deploy exception: {e}"
 
     # 시스템 로그 가져오기 -> 'tail' 명령어로 launcher.log 파일의 뒷부분만 짤라서 가져온다
-    def fetch_log(self, robot_id, lines=50):
+    def fetch_log(self, robot_id, lines=50, force_local=False):
         # Use dynamic CD chain to find launcher.log in the correct workspace
         dynamic_cd = 'cd /home/booster/Workspace/GUI/INHA-Player 2>/dev/null || cd ~/Workspace/GUI-sim/INHA-Player 2>/dev/null || cd ~/Workspace/INHA/simul-bridge-gui/INHA-Player 2>/dev/null'
         cmd = f"{dynamic_cd}; tail -n {lines} launcher.log"
 
-        if robot_id not in self.clients:
-            if not self.clients:
+        if robot_id not in self.clients or force_local:
+            if not self.clients or force_local:
                  import subprocess
                  try:
                      result = subprocess.run(cmd, shell=True, capture_output=True, text=True)

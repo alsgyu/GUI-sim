@@ -8,10 +8,11 @@ interface CommandPanelProps {
     strategies: string[];
     selectedStrategy: string;
     onStrategyChange: (robotId: string, strategy: string) => void;
+    forceLocal?: boolean;
 }
 
 // SSH 명령 제어 패널 -> 특정 로봇에 대해 쉘 명령을 내리고 터미널 출력을 확인하는 컴포넌트
-const CommandPanel = ({ robotId, strategies, selectedStrategy, onStrategyChange }: CommandPanelProps) => {
+const CommandPanel = ({ robotId, strategies, selectedStrategy, onStrategyChange, forceLocal = false }: CommandPanelProps) => {
     const [customCmd, setCustomCmd] = useState('');
     const [logs, setLogs] = useState<string[]>([]);
 
@@ -32,7 +33,8 @@ const CommandPanel = ({ robotId, strategies, selectedStrategy, onStrategyChange 
         try {
             const res = await axios.post('http://localhost:8000/api/command', {
                 robot_id: robotId,
-                cmd: cmd
+                cmd: cmd,
+                force_local: forceLocal
             });
             if (res.data.stdout) addLog(`OUT: ${res.data.stdout}`);
             if (res.data.stderr) addLog(`ERR: ${res.data.stderr}`);
@@ -120,7 +122,10 @@ const CommandPanel = ({ robotId, strategies, selectedStrategy, onStrategyChange 
                     variant="outlined"
                     color="info"
                     size="small"
-                    onClick={() => sendCommand('cd /home/booster/Workspace/Soccer; echo "=== brain_nohup.log ==="; tail -n 20 brain_nohup.log; echo "\\n=== brain.log ==="; tail -n 20 brain.log')}
+                    onClick={() => {
+                        const url = `http://localhost:8000/api/logs/${robotId}${forceLocal ? '?force_local=true' : ''}`;
+                        axios.get(url).then(r => addLog(r.data.log)).catch(e => addLog(`Error: ${e.message}`));
+                    }}
                 >
                     LOGS
                 </Button>

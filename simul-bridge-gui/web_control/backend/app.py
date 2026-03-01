@@ -68,6 +68,7 @@ class RobotConfig(BaseModel):
 class Command(BaseModel):
     robot_id: str # 명령을 수행할 로봇 ID
     cmd: str      # 실행할 리눅스 쉘 명령어
+    force_local: bool = False # 시뮬레이션 버튼 등으로 무조건 로컬 실행을 강제할지 여부
 
 # 프론트엔드에서 입력한 IP와 비번으로 로봇에 SSH 원격 접속을 시도함 -> 사용자가 'Connect' 버튼을 눌렀을 때 호출된다
 @app.post("/api/connect")
@@ -93,7 +94,7 @@ def send_command(command: Command):
         command.cmd = command.cmd.replace("cd /home/booster/Workspace/Soccer", dynamic_cd)
             
         print("[API] Redirected output to launcher.log, switched workspace dynamically")
-    stdout, stderr = ssh_manager.execute_command(command.robot_id, command.cmd)
+    stdout, stderr = ssh_manager.execute_command(command.robot_id, command.cmd, force_local=command.force_local)
     if stdout is None:
         raise HTTPException(status_code=500, detail=stderr)
     return {"stdout": stdout, "stderr": stderr}
@@ -222,8 +223,8 @@ def emergency_stop():
 
 # 로그 조회
 @app.get("/api/logs/{robot_id}")
-def get_logs(robot_id: str):
-    log_content = ssh_manager.fetch_log(robot_id, lines=100)
+def get_logs(robot_id: str, force_local: bool = False):
+    log_content = ssh_manager.fetch_log(robot_id, lines=100, force_local=force_local)
     return {"id": robot_id, "log": log_content}
 
 # 실시간 상태 스트리밍 엔드포인트 -> 프론트엔드가 이 주소로 웹소켓을 연결하면, 0.5초마다 로봇들의 최신 상태를 JSON으로 전송한다

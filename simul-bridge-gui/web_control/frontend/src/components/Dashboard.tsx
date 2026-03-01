@@ -37,8 +37,9 @@ const DashboardComp = () => {
     // 2. SSH 연결 상태
     const [connectedRobots, setConnectedRobots] = useState<string[]>([]);
 
-    // 3. 현재 제어 패널이 열려있는 로봇 ID
+    // 3. 현재 제어 패널이 열려있는 로봇 ID 및 강제 로컬(Simulation) 제어 여부
     const [controlTarget, setControlTarget] = useState<string | null>(null);
+    const [isSimControl, setIsSimControl] = useState<boolean>(false);
 
     // 4. SSH 연결 다이얼로그 상태
     const [sshDialogOpen, setSSHDialogOpen] = useState(false);
@@ -326,30 +327,41 @@ const DashboardComp = () => {
 
 
                                 {/* 연결 및 제어 버튼 */}
-                                {/* 로봇과 아직 SSH 연결이 안되어 있으면 CONNECT, 되어 있으면 CONTROL 버튼 표시 */}
+                                {/* 로봇과 아직 SSH 연결이 안되어 있으면 CONNECT 및 SIM CONTROL 버튼 표시 */}
                                 {isConnected ? (
                                     <Button
                                         variant="contained"
                                         color="success" // 초록색 버튼
                                         fullWidth
                                         size="small"
-                                        onClick={() => setControlTarget(id)}
+                                        onClick={() => { setControlTarget(id); setIsSimControl(false); }}
                                     >
                                         CONTROL
                                     </Button>
                                 ) : (
-                                    <Button
-                                        variant="contained"
-                                        color="primary" // 파란색 버튼
-                                        fullWidth
-                                        size="small"
-                                        onClick={() => {
-                                            setSshTarget(id);
-                                            setSSHDialogOpen(true);
-                                        }}
-                                    >
-                                        CONNECT
-                                    </Button>
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Button
+                                            variant="contained"
+                                            color="primary" // 파란색 버튼
+                                            fullWidth
+                                            size="small"
+                                            onClick={() => {
+                                                setSshTarget(id);
+                                                setSSHDialogOpen(true);
+                                            }}
+                                        >
+                                            CONNECT
+                                        </Button>
+                                        <Button
+                                            variant="outlined"
+                                            color="secondary"
+                                            fullWidth
+                                            size="small"
+                                            onClick={() => { setControlTarget(id); setIsSimControl(true); }}
+                                        >
+                                            SIM CONTROL
+                                        </Button>
+                                    </Box>
                                 )}
                             </Paper>
                         </Grid>
@@ -378,6 +390,7 @@ const DashboardComp = () => {
                                             strategies={strategies}
                                             selectedStrategy={selectedStrategies[controlTarget] || ''}
                                             onStrategyChange={(robotId: string, strategy: string) => setSelectedStrategies({ ...selectedStrategies, [robotId]: strategy })}
+                                            forceLocal={isSimControl}
                                         />
                                     </Grid>
                                     {/* Right half: State History Panel (filtered for this robot) */}
@@ -385,7 +398,7 @@ const DashboardComp = () => {
                                         <StateHistoryBoard logs={historyLogs.filter(log => log.robotId === controlTarget)} />
                                     </Grid>
                                     <Grid item xs={12}>
-                                        <Button onClick={() => setControlTarget(null)} fullWidth variant="outlined" sx={{ mt: 1 }}>
+                                        <Button onClick={() => { setControlTarget(null); setIsSimControl(false); }} fullWidth variant="outlined" sx={{ mt: 1 }}>
                                             Close Control Panel
                                         </Button>
                                     </Grid>
