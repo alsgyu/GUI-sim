@@ -103,8 +103,9 @@ class SSHManager:
 
             # ROS2 환경 소스 설정 명령어
             setup_cmd = "source /opt/ros/humble/setup.bash 2>/dev/null || source /opt/ros/foxy/setup.bash 2>/dev/null"
-            setup_cmd += "; source /home/booster/Workspace/GUI/INHA-Player/install/setup.bash 2>/dev/null"
-            setup_cmd += "; export FASTRTPS_DEFAULT_PROFILES_FILE=/home/booster/Workspace/GUI/INHA-Player/configs/fastdds.xml"
+            setup_cmd += "; cd /home/booster/Workspace/GUI/INHA-Player 2>/dev/null || cd ~/Workspace/GUI-sim/INHA-Player 2>/dev/null || cd ~/Workspace/INHA/simul-bridge-gui/INHA-Player 2>/dev/null"
+            setup_cmd += "; source install/setup.bash 2>/dev/null"
+            setup_cmd += "; export FASTRTPS_DEFAULT_PROFILES_FILE=configs/fastdds.xml"
             setup_cmd += "; export ROS_LOG_DIR=/tmp"
 
             # STEP 1: 어떤 topic으로 brain이 수신 대기중인지 자동 탐지
@@ -209,7 +210,11 @@ except Exception as e:
             
         try:
             client = self.clients[robot_id]
-            cmd = f"tail -n {lines} /home/booster/Workspace/GUI/INHA-Player/launcher.log"
+            
+            # Use dynamic CD chain to find launcher.log in the correct workspace
+            dynamic_cd = 'cd /home/booster/Workspace/GUI/INHA-Player 2>/dev/null || cd ~/Workspace/GUI-sim/INHA-Player 2>/dev/null || cd ~/Workspace/INHA/simul-bridge-gui/INHA-Player 2>/dev/null'
+            cmd = f"{dynamic_cd}; tail -n {lines} launcher.log"
+            
             stdin, stdout, stderr = client.exec_command(cmd)
             
             log_content = stdout.read().decode()

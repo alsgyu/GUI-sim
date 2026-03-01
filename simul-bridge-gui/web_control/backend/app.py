@@ -85,13 +85,14 @@ def send_command(command: Command):
     
     # 로그 출력 파일 생성
     if "brain_nohup.log" in command.cmd:
-        command.cmd = command.cmd.replace("brain_nohup.log", "/home/booster/Workspace/GUI/INHA-Player/launcher.log")
-        command.cmd = command.cmd.replace("Workspace/Soccer", "Workspace/GUI/INHA-Player")
-        # if "source /opt/ros" in command.cmd:
-        #     command.cmd = command.cmd.replace("; nohup", "; source ./install/setup.bash; nohup")
+        # Absolute path hardcoding breaks simulation computers. Write to relative launcher.log
+        command.cmd = command.cmd.replace("brain_nohup.log", "launcher.log")
+        
+        # Fallback chain for changing directories: Real Robot -> User Simulation PC -> Mac Dev Env
+        dynamic_cd = 'cd /home/booster/Workspace/GUI/INHA-Player 2>/dev/null || cd ~/Workspace/GUI-sim/INHA-Player 2>/dev/null || cd ~/Workspace/INHA/simul-bridge-gui/INHA-Player 2>/dev/null'
+        command.cmd = command.cmd.replace("cd /home/booster/Workspace/Soccer", dynamic_cd)
             
-        # print("[API] Redirected output to INHA-Player/launcher.log, switched workspace, and added local source")
-        print("[API] Redirected output to INHA-Player/launcher.log, switched workspace")
+        print("[API] Redirected output to launcher.log, switched workspace dynamically")
     stdout, stderr = ssh_manager.execute_command(command.robot_id, command.cmd)
     if stdout is None:
         raise HTTPException(status_code=500, detail=stderr)
