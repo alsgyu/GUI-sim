@@ -1,0 +1,81 @@
+brain_node:
+  ros__parameters:
+    game:
+      team_id: 14
+      player_id: 2 # 1 | 2 | 3 | 4 | 5
+      field_type: "inha_size" # kid_size | adult_size | inha_size
+      player_role: "goal_keeper" # striker | defender | goal_keeper
+      treat_person_as_robot: true
+      number_of_players: 4
+     
+    robot: # 로봇 제어할 때 clapping 등 동작을 위한 파라미터 -> robot_client.cpp 에서 사용
+      robot_height: 0.9 
+      odom_factor: 1.2 
+      vx_factor: 0.50 
+      yaw_offset: 0.0 
+      vx_limit: 1.0 
+      vy_limit: 0.4
+      vtheta_limit: 1.2 
+
+    strategy:
+      ball_confidence_threshold: 50.0 # 공 인식 신뢰도 임계값
+      ball_memory_timeout: 5.0 # 공의 위치를 얼마나 많은 시간동안 기억할지 정하는 파라미터
+
+      # 킥에 사용
+      abort_kick_when_ball_moved: true 
+      
+    chase:  
+      limit_near_ball_speed: false # 가까워질수록 속도를 줄일 지 -> 실제론 다가갈 때도 속도가 줄어들음
+      near_ball_speed_limit: 0.3
+      near_ball_range: 0.4 # 분명 m 기준일텐데 3m면 너무 큰거 아닌가?
+    
+    obstacle_avoidance:
+      occupancy_threshold: 30 # 2000은 너무 높아서 수정 (sample_step 16일 때 약 952포인트 최대)
+      collision_threshold: 0.4 # 충돌 회피 거리 임계값 (로봇 반경 고려) 
+      # 밑에 2개 변수를 chase에 뺄지 고민중 
+      avoid_during_chase: false # chase 중에 장애물을 회피할 지 여부
+      chase_ao_safe_dist: 3.5 # chase 중 장애물을 회피할 때 최소 안전 거리
+
+      # 킥에 사용
+      avoid_during_kick: false 
+      kick_ao_safe_dist: 3.0 
+      
+      obstacle_memory_msecs: 500. # 장애물을 얼마나 오랫동안 기억할지 ms 
+      enable_freekick_avoid: false # freekick 중 장애물을 회피할지 여부
+
+    locator:
+      min_marker_count: 4 # 로컬라이저 최소 마커 수
+      max_residual: 0.35 # 최대 잔차 (오차 허용값)
+
+    communication:
+      enable: true # 팀 통신 활성화 여부 (default: false)
+
+    vision:
+      image_topic: "/booster_camera_bridge/StereoNetNode/rectified_image" # d-robotics
+      depth_image_topic: "/booster_camera_bridge/StereoNetNode/stereonet_depth" # d-robotics
+      cam_pixel_width: 544. # d-robotics
+      cam_pixel_height: 448. # d-robotics
+      cam_fov_x: 69.4 # d-robotics / 카메라 시야각, 단위: 도
+      cam_fov_y: 42.5 # d-robotics / 카메라 시야각, 단위: 도
+    
+    depth_obstacle_preprocessing: # depth callback parameters
+      depth_sample_step: 16 # 모든 픽셀을 다 쓰면 무거워서 step 간격으로 다운샘플링
+      obstacle_min_height: 0.45 # 장애물로 인식할 최소 높이 (m)
+      grid_size: 0.2 # depth callback에서 쓰이는 그리드 셀 크기
+      max_x: 3.0 # 해당 범위까지만 장애물 인식
+      max_y: 5.0 
+      exclusion_x: 0.4 # 로봇 자신의 몸체를 제외하기 위해
+      exclusion_y: 0.5
+      ball_exclusion_radius: 0.0 # 공을 장애물로 인식하기 하는 것을 제외하기 위해
+      ball_exclusion_height: 0.3 
+
+    rerunLog:
+      enable_tcp: true # 리런에 연결 할 지
+
+      server_ip: "192.168.50.20:9876" 
+      enable_file: true  # 리런 로그 파일을 만들지
+      log_dir: "/home/booster/Workspace/rrlog" # 리런 로그 파일 저장 경로
+      max_log_file_mins: 5.0 # 리런 로그 파일 최대 길이 (분)
+      img_interval: 1 # 리런 로그 파일 이미지 저장 간격
+      
+    game_control_ip: "192.168.50.221" # 게임 컨트롤러 IP 주소 -> gamecontroller launch 파일도 수정 필요

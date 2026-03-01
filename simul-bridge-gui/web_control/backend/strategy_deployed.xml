@@ -1,0 +1,13 @@
+<root main_tree_to_execute="MainTree">
+ <BehaviorTree ID="MainTree">
+  <Fallback name="Sel">
+   <!-- 1. Very Close: Just KICK blindly -->
+   <Sequence name="Seq_Kick">
+    <Condition ID="CheckBallDist" op="LT" dist="0.3" />
+    <Action ID="Kick" />
+   </Sequence>
+   <!-- 2. Otherwise: CHASE endlessly (No passing, no waiting) -->
+   <Action ID="Chase" />
+  </Fallback>
+ </BehaviorTree>
+</root>

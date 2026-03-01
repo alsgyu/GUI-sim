@@ -1,0 +1,84 @@
+camera:
+  type: d-robotics
+  intrin:
+    fx: 269.48665198621774
+    fy: 269.48665198621774
+    cx: 272.0
+    cy: 224.0
+    distortion_model: 0
+    distortion_coeffs:
+      []
+  extrin:
+    -
+      - 0.0
+      - 0.1985
+      - 0.9801
+      - -0.0026
+    -
+      - -1.0
+      - 0.0
+      - 0.0
+      - -0.0115
+    -
+      - 0.0
+      - -0.9801
+      - 0.1985
+      - -0.0095
+    -
+      - 0.0
+      - 0.0
+      - 0.0
+      - 1.0
+  pitch_compensation: 0
+  yaw_compensation: 0
+  z_compensation: 0
+detection_model:
+  model_path: ./src/vision/model/best_ada.engine
+  confidence_threshold: 0.2
+  nms_threshold: 0.4
+  classnames: [Ball, Goalpost, Person, LCross, TCross, XCross, PenaltyPoint, Opponent, BRMarker]
+  post_process:
+    single_ball_assumption: false
+    confidence_thresholds:
+      Ball: 0.4
+      Goalpost: 0.4
+      Person: 0.4
+      LCross: 0.3
+      TCross: 0.3
+      XCross: 0.3
+      PenaltyPoint: 0.3
+      Opponent: 0.4
+      BRMarker: 0.2
+segmentation_model:
+  model_path: " "
+  confidence_threshold: 0.3
+  nms_threshold: 0.9
+use_depth: true
+ball_pose_estimator:
+  use_depth: false
+  radius: 0.109
+  down_sample_leaf_size: 0.01
+  cluster_distance_threshold: 0.01
+  fitting_distance_threshold: 0.01
+  minimum_cluster_size: 150
+  filter_distance: 1.2
+  check_ball_height: true
+human_like_pose_estimator:
+  use_depth: false
+  down_sample_leaf_size: 0.01
+  fitting_distance_threshold: 0.01
+  statistic_outlier_multiplier: 0.01
+field_marker_pose_estimator:
+  refine: false
+  line_segment_area_threshold: 75
+calibration:
+  sync_max_time_diff_ms: 1400
+  offset:
+    exclude_distance: 2.0
+    zero_translation: true
+    field_marker_path: ./src/vision/config/field.yaml
+  handeye:
+    calibration_time: 2000-01-01-09-29-08
+    reprojection_error: 3.5616553263245252
+misc:
+  save_data_nonstationary: true

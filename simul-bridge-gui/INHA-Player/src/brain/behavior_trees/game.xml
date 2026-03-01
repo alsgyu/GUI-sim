@@ -1,0 +1,143 @@
+<root BTCPP_format="4">
+    <!-- 포함될 BT 파일들 -->
+    <!--<include path="./dribble.xml" />-->
+    <!-- <include path="./subtrees/locate.xml" /> -->
+    <include path="./subtrees/cam_find_and_track_ball.xml" />
+    <!-- <include path="./subtrees/striker.xml" /> -->
+    <!-- <include path="./subtrees/defender.xml" /> -->
+    <include path="./subtrees/lead_defender.xml" />
+    <include path="./subtrees/sub_defender.xml" />
+    <include path="./subtrees/lead_striker.xml" />
+    <include path="./subtrees/sub_striker.xml" />
+    <include path="./subtrees/goalkeeper.xml" />
+    <include path="./subtrees/find_ball.xml" />
+    <include path="./subtrees/setpiece.xml" />
+    <include path="./strategy_layer.xml" />
+
+
+    <!-- 시작 -->
+    <BehaviorTree ID="MainTree">
+        <Sequence name="root">
+            <RunOnce><Script code="control_state=1" /></RunOnce>
+
+            <ReactiveSequence _while="control_state==1">
+
+                <ReactiveSequence _while="gc_is_under_penalty" name="Penalty">
+                    <SetVelocity x="0.0" y="0.0" theta="0.0" />
+                    <!-- <SelfLocateEnterField /> -->
+                </ReactiveSequence>
+
+                <ReactiveSequence _while="!gc_is_under_penalty" name="No_Penalty">
+                    
+                    <!-- 1. TIMEOUT -->
+                    <ReactiveSequence _while="gc_game_secondary_state=='TIMEOUT'" name="Timeout">
+                        <SetVelocity x="0.0" y="0.0" theta="0.0" />
+                        <!-- <SelfLocateEnterField /> -->
+                    </ReactiveSequence>
+
+                    <!-- 2. NONE || EXTRA_TIME -->
+                    <ReactiveSequence _while="gc_game_secondary_state=='NONE' || gc_game_secondary_state=='EXTRA_TIME'" name="Normal_Game">
+                        
+                        <ReactiveSequence _while="gc_game_state=='INITIAL'" name="Initial">
+                            <SetVelocity x="0.0" y="0.0" theta="0.0" />
+                            <CamScanField _while="!odom_calibrated"/>
+                            <SubTree ID="CamFindAndTrackBall" _while="odom_calibrated" _autoremap="true" />
+                            <!-- <SelfLocateEnterField /> -->
+                        </ReactiveSequence>
+
+                        <ReactiveSequence _while="gc_game_state=='READY'" name="Ready">
+                            <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                            <ReactiveSequence _while="gc_is_our_kickoff">
+                                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                                <GoToPose _while="player_id == 3" target_pos_x="-0.5" target_pos_y="0.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                                <GoToPose _while="player_id == 2" target_pos_x="-0.3" target_pos_y="1.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                                <GoToPose _while="player_id == 1" target_pos_x="-4.0" target_pos_y="0.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                            </ReactiveSequence>
+                            <!-- </ReactiveSequence> -->
+                            <ReactiveSequence _while="!gc_is_our_kickoff">
+                                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                                <GoToPose _while="player_id == 3" target_pos_x="-1.0" target_pos_y="-1.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                                <GoToPose _while="player_id == 2" target_pos_x="-1.0" target_pos_y="1.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                                <GoToPose _while="player_id == 1" target_pos_x="-4.0" target_pos_y="0.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                            </ReactiveSequence>
+                        </ReactiveSequence>
+
+                        <ReactiveSequence _while="gc_game_state=='SET'" name="Set">
+                            <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                            <SetVelocity x="0.0" y="0.0" theta="0.0" />
+                        </ReactiveSequence>
+
+                        <ReactiveSequence _while="gc_game_state=='PLAY'" name="Play">
+                            
+                            <!-- 역할 전환 로직 -->
+                            <RoleManager current_role="{current_role}" />
+                            
+                            <!-- 전략/전술 레이어 (모든 역할 공통 적용) -->
+                            <!-- <SubTree ID="StrategyTree" _autoremap="true" /> -->
+
+                            <SubTree
+                                ID="CamFindAndTrackBall"
+                                _autoremap="true"
+                                _while="decision != 'offtheball'" />
+
+                            <ReactiveSequence>
+                                <SubTree ID="LeadStriker" _autoremap="true" _while="current_role == 'lead_striker'" />
+                                <SubTree ID="SubStriker" _autoremap="true" _while="current_role == 'sub_striker'" />
+                                <SubTree ID="LeadDefender" _autoremap="true" _while="current_role == 'lead_defender'" />
+                                <SubTree ID="SubDefender" _autoremap="true" _while="current_role == 'sub_defender'" />
+                                <SubTree ID="Goalkeeper" _autoremap="true" _while="current_role == 'goal_keeper'" />
+                                <SetVelocity _while="current_role == 'none'" x="0.0" y="0.0" theta="0.0" />
+                            </ReactiveSequence>
+                        </ReactiveSequence>
+
+                        <ReactiveSequence _while="gc_game_state=='END'" name="End">
+                            <SetVelocity x="0.0" y="0.0" theta="0.0" />
+                        </ReactiveSequence>
+
+                    </ReactiveSequence>
+
+                    <!-- 3. SHOOT_OUT -->
+                    <ReactiveSequence _while="gc_game_secondary_state=='SHOOT_OUT'" name="Shoot_Out">
+                        <ReactiveSequence _while="gc_game_state=='INITIAL'" name="Initial">
+                            <SetVelocity x="0.0" y="0.0" theta="0.0" />
+                            <SubTree ID="CamFindAndTrackBall" _while="odom_calibrated" _autoremap="true" />
+                        </ReactiveSequence>
+
+                        <ReactiveSequence _while="gc_game_state=='SET'" name="Set">
+                            <SetVelocity x="0.0" y="0.0" theta="0.0" />
+                            <SubTree ID="CamFindAndTrackBall" _while="odom_calibrated" _autoremap="true" />
+                        </ReactiveSequence>
+
+                        <ReactiveSequence _while="gc_game_state=='PLAY'" name="Play">
+                            <ReactiveSequence _while="gc_is_our_kickoff">
+                                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                                <SubTree ID="LeadStriker" _autoremap="true"/>
+                            </ReactiveSequence>
+                            <ReactiveSequence _while="!gc_is_our_kickoff">
+                                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                                <SubTree ID="Goalkeeper" _autoremap="true"/>
+                            </ReactiveSequence>
+                        </ReactiveSequence>
+
+                        <ReactiveSequence _while="gc_game_state=='END'" name="Finish">
+                            <SetVelocity x="0.0" y="0.0" theta="0.0" />
+                            <SubTree ID="CamFindAndTrackBall" _while="odom_calibrated" _autoremap="true" />
+                        </ReactiveSequence>
+                    </ReactiveSequence>
+
+                    <!-- 4. SET_PIECE -->
+                    <ReactiveSequence _while="gc_game_secondary_state=='DIRECT_FREE_KICK' 
+                                            || gc_game_secondary_state=='INDIRECT_FREE_KICK' 
+                                            || gc_game_secondary_state=='PENALTY_KICK' 
+                                            || gc_game_secondary_state=='CORNER_KICK' 
+                                            || gc_game_secondary_state=='GOAL_KICK' 
+                                            || gc_game_secondary_state=='THROW_IN' 
+                                            || gc_game_secondary_state=='FREE_KICK'" name="SetPiece">
+                        <SubTree ID="Setpiece" _autoremap="true"/>
+                    </ReactiveSequence>
+
+                </ReactiveSequence>
+            </ReactiveSequence>
+        </Sequence>
+    </BehaviorTree>
+</root>

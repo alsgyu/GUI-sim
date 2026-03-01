@@ -1,0 +1,6 @@
+streamlit
+altair
+pandas
+numpy
+firebase-admin
+matplotlib

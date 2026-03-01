@@ -1,0 +1,115 @@
+<root BTCPP_format="4">
+    <!-- Include Subtrees -->
+    <include path="./subtrees/cam_find_and_track_ball.xml" />
+    <include path="./subtrees/locate.xml" />
+    <include path="./subtrees/striker.xml" />
+    <include path="./subtrees/goalie.xml" />
+    <include path="./subtrees/defender.xml" />
+
+    <BehaviorTree ID="MainTree">
+        <Sequence name="root">
+            <RunOnce><Script code="control_state=3" /></RunOnce>
+            
+            <!-- 수동 보조 모드(state=1), 픽업 후 복귀 모드(state=2) 추후 추가 -->
+
+            <SubTree ID="Locate" _autoremap="true" />
+
+            <!-- 1. 페널티 상태 -->
+            <ReactiveSequence _while="gc_is_under_penalty" name="페널티 상태">
+                <SetVelocity /> <!-- 정지 -->
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <SelfLocateEnterField /> <!-- 페널티 중에도 자기 위치 파악 시도 -->
+            </ReactiveSequence>
+
+            <!-- 2. 정상 경기 진행 -->
+            <ReactiveSequence _while="!gc_is_under_penalty" name="정상 경기">
+                
+                <!-- 2.1 타임아웃 -->
+                <ReactiveSequence _while="gc_game_sub_state_type=='TIMEOUT'" name="타임아웃">
+                     <SetVelocity />
+                     <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                     <SelfLocateEnterField />
+                </ReactiveSequence>
+
+                <!-- 2.2 일반 경기 및 세트피스 -->
+                <ReactiveSequence _while="gc_game_sub_state_type!='TIMEOUT'" name="경기 루프">
+                    
+                    <!-- INITIAL: 입장 대기 -->
+                    <ReactiveSequence _while="gc_game_state=='INITIAL'" name="INITIAL">
+                        <SetVelocity />
+                        <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                        <SelfLocateEnterField />
+                    </ReactiveSequence>
+
+                    <!-- READY: 시작 위치로 이동 -->
+                    <ReactiveSequence _while="gc_game_state=='READY'" name="READY">
+                        <MoveHead pitch="0.35" yaw="0.0" />
+                        
+                        <!-- TODO 1 : GoToRolePosition 구현 필요 -->
+
+                        <!-- 현재는 Locate만 수행 -->
+                        <SubTree ID="Locate" _autoremap="true" />
+                    </ReactiveSequence>
+
+                    <!-- SET: 킥오프전 정지 (Set Position) -->
+                    <ReactiveSequence _while="gc_game_state=='SET'" name="SET">
+                        <SetVelocity />
+                        <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                        <SubTree ID="Locate" _autoremap="true" />
+                    </ReactiveSequence>
+
+                    <!-- PLAY: 실제 플레이 -->
+                    <ReactiveSequence _while="gc_game_state=='PLAY'" name="PLAY">
+                        
+                        <!-- 세트피스 처리 (코너킥, 골킥, 스로인 등) 추후 추가 -->
+                        <ReactiveSequence _while="gc_game_sub_state_type == 'CORNER_KICK'" name="코너킥">
+                             <!-- 코너킥 상태 -->
+                             <SubTree ID="Striker" _autoremap="true" _while="player_role == 'striker'" />
+                        </ReactiveSequence>
+                        
+                        <ReactiveSequence _while="gc_game_sub_state_type == 'GOAL_KICK'" name="골킥">
+                             <!-- 골킥 상태 -->
+                             <SubTree ID="Striker" _autoremap="true" _while="player_role == 'striker'" />
+                        </ReactiveSequence>
+
+                        <ReactiveSequence _while="gc_game_sub_state_type == 'THROW_IN'" name="스로인">
+                             <!-- 스로인 상태 -->
+                             <SubTree ID="Striker" _autoremap="true" _while="player_role == 'striker'" />
+                        </ReactiveSequence>
+                        
+                        <!-- 프리킥(간접/직접) 추후 추가 -->
+                        <!-- 1. 간접 프리킥(무조건 패스/크로스 시도) -->
+                        <ReactiveSequence _while="gc_game_sub_state_type == 'INDIRECT_FREE_KICK'" name="간접 프리킥">
+                            <!-- 패스 서브 트리 구현 후 추가 -->
+                            <SubTree ID="Striker" _autoremap="true" _while="player_role == 'striker'" />
+                        </ReactiveSequence>
+
+                        <!-- 2. 직접 프리킥 -->
+                        <ReactiveSequence _while="gc_game_sub_state_type == 'DIRECT_FREE_KICK'" name="직접 프리킥">
+                             <SubTree ID="Striker" _autoremap="true" _while="player_role == 'striker'" />
+                        </ReactiveSequence>
+
+                        <!-- 3. 페널티 프리킥 -->
+                        <ReactiveSequence _while="gc_game_sub_state_type == 'PENALTY_KICK'" name="페널티 프리킥">
+                            <SubTree ID="Striker" _autoremap="true" _while="player_role == 'striker'" />
+                        </ReactiveSequence>
+                        
+                        <!-- 4. 일반 경기 (config에서 미리 설정된 role에 따라 다른 서브 트리 실행) -->
+                        <ReactiveSequence _while="gc_game_sub_state_type == 'NONE'" name="일반 경기">
+                            <SubTree ID="Striker" _autoremap="true" _while="player_role == 'striker'" />
+                            <!-- <SubTree ID="Goalie" _autoremap="true" _while="player_role == 'goal_keeper'" /> -->
+                            <SubTree ID="Defender" _autoremap="true" _while="player_role == 'defender'" />
+                        </ReactiveSequence>
+                        
+                    </ReactiveSequence>
+
+                    <!-- END: 경기 종료 -->
+                    <ReactiveSequence _while="gc_game_state=='END'" name="END">
+                        <SetVelocity />
+                    </ReactiveSequence>
+
+                </ReactiveSequence> 
+            </ReactiveSequence>
+        </Sequence>
+    </BehaviorTree>
+</root>

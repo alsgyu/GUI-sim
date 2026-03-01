@@ -1,0 +1,19 @@
+<root BTCPP_format="4" >
+  <BehaviorTree ID="CamFindAndTrackBall">
+     <Sequence name="root">
+
+         <IfThenElse>
+            <!-- 두 변수 중 하나라도 true면 success -->
+            <!-- 원본은 바로 아래거 ball_location_known || tm_ball_pos_reliable -->
+             <!-- <ScriptCondition        name="공의 위치를 알고 있는가?" code="ball_location_known || tm_ball_pos_reliable" /> -->
+             <ScriptCondition        name="공의 위치를 알고 있는가?" code="ball_location_known" />
+             <Sequence               name="[Yes] -> 공을 추적하면서 위치 조정" >
+                <CamTrackBall />
+             </Sequence>
+             <Sequence               name="[No] -> 찾아">
+                <CamFindBall />
+             </Sequence>
+         </IfThenElse>
+     </Sequence>
+  </BehaviorTree>
+</root>

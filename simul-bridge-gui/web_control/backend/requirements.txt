@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+paramiko
+pydantic
+python-multipart
+websockets
+aiofiles
+# rclpy is assumed to be installed in the ROS 2 environment

@@ -1,0 +1,11 @@
+<root main_tree_to_execute="MainTree">
+ <BehaviorTree ID="MainTree">
+  <Fallback name="Sel">
+   <Sequence name="Seq">
+    <Condition ID="CheckBallDist" op="LT" dist="0.8" />
+    <Action ID="Kick" />
+   </Sequence>
+   <Action ID="Wait" seconds="0.1" />
+  </Fallback>
+ </BehaviorTree>
+</root>

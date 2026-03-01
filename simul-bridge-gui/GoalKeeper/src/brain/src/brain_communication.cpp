@@ -1,0 +1,585 @@
+#include "brain.h"
+#include "brain_communication.h"
+
+// BrainCommunication 생성자 -> Brain 객체 포인터를 멤버 변수에 저장
+BrainCommunication::BrainCommunication(Brain *argBrain) : brain(argBrain)
+{
+}
+
+// BrainCommunication 소멸자 -> 모든 통신 리소스 정리
+BrainCommunication::~BrainCommunication()
+{
+    clearupGameControllerUnicast();
+    clearupDiscoveryBroadcast();
+    clearupDiscoveryReceiver();
+    clearupCommunicationUnicast();
+    clearupCommunicationReceiver();
+}
+
+
+// 전체 통신 모듈 초기화 -> 활성화되면 GameController, Discovery, Unicast 초기화 진행
+void BrainCommunication::initCommunication()
+{
+    initGameControllerUnicast();
+    if (brain->config->enableCom)
+    {
+        cout << RED_CODE << "Communication enabled." << RESET_CODE << endl;
+        _discovery_udp_port = 20000 + brain->config->teamId;
+        _unicast_udp_port = 30000 + brain->config->teamId;
+
+        initDiscoveryBroadcast();
+        initDiscoveryReceiver();
+        initCommunicationUnicast();
+        initCommunicationReceiver();
+    }
+    else
+    {
+        cout << RED_CODE << "Communication disabled." << RESET_CODE << endl;
+    }
+}
+    
+
+// GameController와의 통신(Unicast)을 위한 소켓 생성 및 스레드 시작
+void BrainCommunication::initGameControllerUnicast()
+{
+    try
+    {
+        _gc_send_socket = socket(AF_INET, SOCK_DGRAM, 0);
+        if (_gc_send_socket < 0)
+        {
+        cout << RED_CODE << format("gc socket failed: %s", strerror(errno))
+            << RESET_CODE << endl;
+        throw std::runtime_error(strerror(errno));
+        }
+        // 목표 주소 설정
+        string gamecontrol_ip = brain->get_parameter("game_control_ip").as_string();
+        cout << GREEN_CODE << format("GameControl IP: %s", gamecontrol_ip.c_str())
+            << RESET_CODE << endl;
+        _gcsaddr.sin_family = AF_INET;
+        _gcsaddr.sin_addr.s_addr = inet_addr(gamecontrol_ip.c_str());
+        _gcsaddr.sin_port = htons(GAMECONTROLLER_RETURN_PORT);
+
+        _unicast_gamecontrol_flag = true;
+        _gamecontrol_unicast_thread = std::thread([this](){ this->unicastToGameController(); });
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+}
+
+// GameController 통신 종료 -> 소켓 닫기 및 스레드 조인
+void BrainCommunication::clearupGameControllerUnicast()
+{
+    _unicast_gamecontrol_flag = false;
+    if (_gc_send_socket >= 0)
+    {
+        close(_gc_send_socket);
+        _gc_send_socket = -1;
+        cout << RED_CODE << format("GameControl send socket has been closed.")
+            << RESET_CODE << endl;
+    }
+    if (_gamecontrol_unicast_thread.joinable())
+    {
+        _gamecontrol_unicast_thread.join();
+    }
+}
+
+// 팀원 탐색(Discovery) 메시지 브로드캐스팅 초기화 -> 브로드캐스트 소켓 생성 및 송신 스레드 시작
+void BrainCommunication::initDiscoveryBroadcast()
+{
+    try
+    {
+        _discovery_send_socket = socket(AF_INET, SOCK_DGRAM, 0);
+        if (_discovery_send_socket < 0)
+        {
+            cout << RED_CODE << format("socket failed: %s", strerror(errno))
+                << RESET_CODE << endl;
+            throw std::runtime_error(strerror(errno));
+        }
+
+        // 브로드캐스트 옵션 설정
+        int broadcast = 1;
+        if (setsockopt(_discovery_send_socket, SOL_SOCKET, SO_BROADCAST, 
+                    &broadcast, sizeof(broadcast)) < 0)
+        {
+            cout << RED_CODE << format("Failed to set SO_BROADCAST: %s", strerror(errno))
+                << RESET_CODE << endl;
+            throw std::runtime_error(strerror(errno));
+        }
+
+        // 브로드캐스트 주소 설정
+        _saddr.sin_family = AF_INET;
+        _saddr.sin_addr.s_addr = INADDR_BROADCAST;  // 255.255.255.255
+        _saddr.sin_port = htons(_discovery_udp_port);
+
+        _broadcast_discovery_flag = true;
+        _discovery_broadcast_thread = std::thread([this](){ this->broadcastDiscovery(); });
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        brain->log->log("error/communication", rerun::TextLog(format("Failed to initialize discovery broadcast: %s", e.what())));
+    }
+    
+}
+
+// Discovery 브로드캐스팅 종료 -> 소켓 닫기 및 스레드 조인
+void BrainCommunication::clearupDiscoveryBroadcast()
+{
+    _broadcast_discovery_flag = false;
+    if (_discovery_send_socket >= 0)
+    {
+        close(_discovery_send_socket);
+        _discovery_send_socket = -1;
+        cout << RED_CODE << format("Discovery send socket has been closed.")
+            << RESET_CODE << endl;
+    }
+
+    if (_discovery_broadcast_thread.joinable())
+    {
+        _discovery_broadcast_thread.join();
+    }
+}
+
+// Discovery 수신 초기화 -> 수신용 UDP 소켓 생성 및 수신 스레드 시작
+void BrainCommunication::initDiscoveryReceiver()
+{
+    try
+    {
+        _discovery_recv_socket = socket(AF_INET, SOCK_DGRAM, 0);
+        if (_discovery_recv_socket < 0)
+        {
+            cout << RED_CODE << format("socket failed: %s", strerror(errno))
+                << RESET_CODE << endl;
+            throw std::runtime_error(strerror(errno));
+        }
+
+        // 주소 재사용 허용
+        int reuse = 1;
+        if (setsockopt(_discovery_recv_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0)
+        {
+            cout << RED_CODE << format("Failed to set SO_REUSEADDR: %s", strerror(errno))
+                << RESET_CODE << endl;
+            throw std::runtime_error(strerror(errno));
+        }
+
+        sockaddr_in addr{};
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);  
+        addr.sin_port = htons(_discovery_udp_port);
+        
+        if (bind(_discovery_recv_socket, (sockaddr *)&addr, sizeof(addr)) < 0)
+        {
+            cout << RED_CODE << format("bind failed: %s (port=%d)", strerror(errno), _discovery_udp_port)
+                << RESET_CODE << endl;
+            throw std::runtime_error(strerror(errno));
+        }
+
+        cout << GREEN_CODE << format("Listening for UDP broadcast on port %d", _discovery_udp_port)
+            << RESET_CODE << endl;
+
+        _receive_discovery_flag = true;
+        _discovery_recv_thread = std::thread([this](){ this->spinDiscoveryReceiver(); });
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        brain->log->log("error/communication", rerun::TextLog(format("Failed to initialize discovery receiver: %s", e.what())));
+    }
+}
+
+// Discovery 수신 종료 -> 소켓 닫기 및 스레드 조인
+void BrainCommunication::clearupDiscoveryReceiver()
+{
+    _receive_discovery_flag = false;
+    if (_discovery_recv_socket >= 0)
+    {
+        close(_discovery_recv_socket);
+        _discovery_recv_socket = -1;
+        cout << RED_CODE << format("Communication receive socket has been closed.")
+            << RESET_CODE << endl;
+    }
+    if (_discovery_recv_thread.joinable())
+    {
+        _discovery_recv_thread.join();
+    }
+}
+
+// GameController에 로봇의 상태(ALIVE, 팀, ID 등)를 주기적으로 전송하는 스레드 함수
+void BrainCommunication::unicastToGameController() {
+    while (_unicast_gamecontrol_flag)
+    {
+        // cout << RED_CODE << format("unicastToGameController header=%s version=%d teamId=%d, playerId=%d", gc_return_data.header, gc_return_data.version, brain->config->teamId, brain->config->playerId)
+        //     << RESET_CODE << endl;
+        gc_return_data.team = brain->config->teamId;
+        gc_return_data.player = brain->config->playerId; // return data 的id是1,2,3,4
+        gc_return_data.message = GAMECONTROLLER_RETURN_MSG_ALIVE;
+
+        int ret = sendto(_gc_send_socket, &gc_return_data, sizeof(gc_return_data), 0, (sockaddr *)&_gcsaddr, sizeof(_gcsaddr));
+        if (ret < 0)
+        {
+            cout << RED_CODE << format("gc sendto failed: %s", strerror(errno))
+                << RESET_CODE << endl;
+        }
+        this_thread::sleep_for(chrono::milliseconds(BROADCAST_GAME_CONTROL_INTERVAL_MS));
+    }
+}
+
+// Discovery 메시지를 주기적으로 브로드캐스트하여 자신의 존재를 알리는 스레드 함수
+void BrainCommunication::broadcastDiscovery() {
+    while (_broadcast_discovery_flag)
+    {
+        TeamDiscoveryMsg msg;
+
+        msg.communicationId = _discovery_msg_id++;
+        msg.teamId = brain->config->teamId;
+        msg.playerId = brain->config->playerId;
+        // // msg.playerRole = tree->getEntry<string>("player_role");
+        // msg.isAlive = !brain->tree->getEntry<bool>("gc_is_under_penalty");
+        // msg.ballDetected = brain->data->ballDetected;
+        // msg.ballRange = brain->data->ball.range;
+        // msg.ballPosToField = brain->data->ball.posToField;
+        // msg.robotPoseToField = brain->data->robotPoseToField;
+
+        int ret = sendto(_discovery_send_socket, &msg, sizeof(msg), 0, (sockaddr *)&_saddr, sizeof(_saddr));
+        if (ret < 0)
+        {
+            cout << RED_CODE << format("sendto failed: %s", strerror(errno))
+                << RESET_CODE << endl;
+        }
+        // cout << GREEN_CODE << format("broadcastDiscovery: %d", msg.communicationId)
+            // << RESET_CODE << endl;
+        brain->data->discoveryMsgId = msg.communicationId;
+        brain->data->discoveryMsgTime = brain->get_clock()->now();
+        this_thread::sleep_for(chrono::milliseconds(BROADCAST_DISCOVERY_INTERVAL_MS));
+    } 
+}
+
+// Discovery 메시지 수신 및 팀원 IP 식별 스레드 함수 -> 팀원의 IP 주소를 파악하여 Unicast 목록에 추가
+void BrainCommunication::spinDiscoveryReceiver() {    
+    sockaddr_in addr{};
+    socklen_t addr_len = sizeof(addr);
+
+    TeamDiscoveryMsg msg;
+
+    while (_receive_discovery_flag) {
+
+        ssize_t len = recvfrom(_discovery_recv_socket, &msg, sizeof(msg), 0, (sockaddr *)&addr, &addr_len);
+
+        if (len < 0)
+        {
+            cout << RED_CODE << format("receiving UDP message failed: %s", strerror(errno))
+                << RESET_CODE << endl;
+            continue;
+        }
+
+        if (len != sizeof(TeamDiscoveryMsg)) {
+            cout << YELLOW_CODE << format("received TeamDiscoveryMsg packet with wrong size: %ld, expected: %ld", len, sizeof(TeamDiscoveryMsg))
+                << RESET_CODE << endl;
+            continue;
+        }
+
+        if (msg.validation != VALIDATION_DISCOVERY) { 
+            cout << RED_CODE << format("received TeamDiscoveryMsg packet with invalid validation: %d", msg.validation)
+                << RESET_CODE << endl;
+            continue;
+        } 
+
+        if (msg.teamId != brain->config->teamId) {
+            cout << YELLOW_CODE << format("Received message from team %d, expected team %d", msg.teamId, brain->config->teamId)
+                << RESET_CODE << endl;
+            continue;
+        }
+
+        if (msg.playerId == brain->config->playerId) { 
+            // 자신의 메시지 처리
+            // cout << YELLOW_CODE <<  format(
+            //     "discoveryID: %d, teamId:%d, playerId: %d, address: %s:%d",
+            //     msg.communicationId, msg.teamId, msg.playerId, inet_ntoa(addr.sin_addr), ntohs(addr.sin_port))
+            //     << RESET_CODE << endl;
+            continue;
+        } else {
+            // 팀원 메시지 처리
+            // cout << GREEN_CODE <<  format(
+            //     "discoveryID: %d, teamId:%d, playerId: %d, address: %s:%d",
+            //     msg.communicationId, msg.teamId, msg.playerId, inet_ntoa(addr.sin_addr), ntohs(addr.sin_port))
+            //     << RESET_CODE << endl;
+            
+            auto time_now = brain->get_clock()->now();
+            std::lock_guard<std::mutex> lock(_teammate_addresses_mutex);
+            _teammate_addresses[addr.sin_addr.s_addr] = {
+                addr.sin_addr.s_addr,
+                msg.playerId,
+                time_now
+            };
+        }
+    }
+}
+
+// 만료된 팀원 제거 -> 일정 시간 동안 응답이 없는 팀원을 목록에서 삭제
+void BrainCommunication::cleanupExpiredTeammates() {
+    std::lock_guard<std::mutex> lock(_teammate_addresses_mutex);    
+    for (auto it = _teammate_addresses.begin(); it != _teammate_addresses.end();) {
+        auto timeDiff = this->brain->get_clock()->now().nanoseconds() - it->second.lastUpdate.nanoseconds();
+        if (timeDiff > TEAMMATE_TIMEOUT_MS * 1e6) {
+            cout << YELLOW_CODE << format("Teammate id %d timed out", it->second.playerId) 
+                 << RESET_CODE << endl;
+            it = _teammate_addresses.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+// 팀원 간 Unicast 통신 초기화 -> 송신 소켓 생성 및 스레드 시작
+void BrainCommunication::initCommunicationUnicast() {
+    try
+    {
+        _unicast_socket = socket(AF_INET, SOCK_DGRAM, 0);
+        if (_unicast_socket < 0) {
+            cout << RED_CODE << format("socket failed: %s", strerror(errno))
+                << RESET_CODE << endl;
+            throw std::runtime_error("Failed to create unicast socket");
+        }
+
+        _unicast_saddr.sin_family = AF_INET;
+        _unicast_saddr.sin_port = htons(_unicast_udp_port);
+
+        _unicast_communication_flag = true;
+        _unicast_thread = std::thread([this](){ this->unicastCommunication(); });
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        brain->log->log("error/communication", rerun::TextLog(format("Failed to initialize unicast communication: %s", e.what())));
+    }
+    
+}
+
+// 실제 팀원 통신 수행 -> 주기적으로 자신의 상태(공 위치, 역할, 비용 등)를 식별된 팀원들에게 Unicast 전송
+void BrainCommunication::unicastCommunication() {
+    auto log = [=](string msg) {
+        brain->log->setTimeNow();
+        brain->log->log("debug/sendMsg", rerun::TextLog(msg));
+    };
+    while (_unicast_communication_flag) {
+        cleanupExpiredTeammates();
+        TeamCommunicationMsg msg;
+        msg.validation = VALIDATION_COMMUNICATION;
+        msg.communicationId = _team_communication_msg_id++;
+        msg.teamId = brain->config->teamId;
+        msg.playerId = brain->config->playerId;
+        msg.playerRole = brain->tree->getEntry<string>("player_role") == "striker" ? 1 : 2;
+        msg.isAlive = brain->data->tmImAlive;
+        msg.isLead = brain->data->tmImLead;
+        msg.ballDetected = brain->data->ballDetected;
+        msg.ballLocationKnown = brain->tree->getEntry<bool>("ball_location_known");
+        msg.ballConfidence = brain->data->ball.confidence;
+        msg.ballRange = brain->data->ball.range;
+        msg.cost = brain->data->tmMyCost;
+        msg.ballPosToField = brain->data->ball.posToField;
+        msg.robotPoseToField = brain->data->robotPoseToField;
+        msg.kickDir = brain->data->kickDir;
+        msg.thetaRb = brain->data->robotBallAngleToField;
+        msg.cmdId = brain->data->tmMyCmdId;
+        msg.cmd = brain->data->tmMyCmd;
+        log(format("ImAlive: %d, ImLead: %d, myCost: %.1f, myCmdId: %d, myCmd: %d", msg.isAlive, msg.isLead, msg.cost, msg.cmdId, msg.cmd));
+
+        std::lock_guard<std::mutex> lock(_teammate_addresses_mutex);
+        for (auto it = _teammate_addresses.begin(); it != _teammate_addresses.end(); ++it) {
+            auto ip = it->second.ip;
+
+            // cout << GREEN_CODE << format("unicastCommunication to %s", inet_ntoa(*(in_addr *)&ip))
+            //     << RESET_CODE << endl;
+            brain->data->tmIP = inet_ntoa(*(in_addr *)&ip);
+            brain->data->sendId = msg.communicationId;
+            brain->data->sendTime = brain->get_clock()->now();
+            
+            _unicast_saddr.sin_addr.s_addr = ip;
+            int ret = sendto(_unicast_socket, &msg, sizeof(msg), 0, (sockaddr *)&_unicast_saddr, sizeof(_unicast_saddr));
+            if (ret < 0) {
+                cout << RED_CODE << format("sendto failed: %s", strerror(errno))
+                    << RESET_CODE << endl;
+            }
+        }
+        this_thread::sleep_for(chrono::milliseconds(UNICAST_INTERVAL_MS));
+    }
+}
+
+// Unicast 통신 종료 -> 소켓 닫기 및 스레드 조인
+void BrainCommunication::clearupCommunicationUnicast() {
+    _unicast_communication_flag = false;
+    if (_unicast_socket >= 0) {
+        close(_unicast_socket);
+        _unicast_socket = -1;
+        cout << RED_CODE << format("Communication send socket has been closed.")
+            << RESET_CODE << endl;
+    }
+
+    if (_unicast_thread.joinable()) {
+        _unicast_thread.join();
+    }
+}
+
+// 팀원 데이터 수신 초기화 -> 수신용 UDP 소켓 생성 및 스레드 시작
+void BrainCommunication::initCommunicationReceiver() {
+    try
+    {
+        _communication_recv_socket = socket(AF_INET, SOCK_DGRAM, 0);
+        if (_communication_recv_socket < 0) {
+            cout << RED_CODE << format("socket failed: %s", strerror(errno))
+                << RESET_CODE << endl;
+            throw std::runtime_error(strerror(errno));
+        }
+        
+        // 주소 재사용 허용
+        
+        int reuse = 1;
+        if (setsockopt(_communication_recv_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0)
+        {
+            cout << RED_CODE << format("Failed to set SO_REUSEADDR: %s", strerror(errno))
+                << RESET_CODE << endl;
+            throw std::runtime_error(strerror(errno));
+        }
+
+        sockaddr_in addr{};
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        addr.sin_port = htons(_unicast_udp_port);
+        
+        if (bind(_communication_recv_socket, (sockaddr *)&addr, sizeof(addr)) < 0) {
+            cout << RED_CODE << format("bind failed: %s (port=%d)", strerror(errno), _unicast_udp_port)
+                << RESET_CODE << endl;
+            throw std::runtime_error(strerror(errno));
+        }
+
+        _receive_communication_flag = true;
+        _communication_recv_thread = std::thread([this](){ this->spinCommunicationReceiver(); });
+    
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        brain->log->log("error/communication", rerun::TextLog(format("Failed to initialize communication receiver: %s", e.what())));
+    }
+}
+
+// 팀원 데이터 수신 스레드 -> 수신된 데이터를 파싱하여 BrainData(공유 메모리)에 저장
+void BrainCommunication::spinCommunicationReceiver() {
+    auto log = [=](string msg) {
+        brain->log->setTimeNow();
+        brain->log->log("debug/receiveMsg", rerun::TextLog(msg));
+    };
+    sockaddr_in addr{};
+    socklen_t addr_len = sizeof(addr);
+
+    TeamCommunicationMsg msg;
+
+    while (_receive_communication_flag) {
+
+        ssize_t len = recvfrom(_communication_recv_socket, &msg, sizeof(msg), 0, (sockaddr *)&addr, &addr_len);
+
+        if (len < 0) {
+            cout << RED_CODE << format("receiving UDP message failed: %s", strerror(errno))
+                << RESET_CODE << endl;
+            continue;
+        }
+
+        if (len != sizeof(TeamCommunicationMsg)) {
+            cout << YELLOW_CODE << format("received TeamCommunicationMsg packet with wrong size: %ld, expected: %ld", len, sizeof(TeamCommunicationMsg))
+                << RESET_CODE << endl;
+            continue;
+        }
+
+        if (msg.validation != VALIDATION_COMMUNICATION) { 
+            cout << RED_CODE << format("received TeamCommunicationMsg packet with invalid validation: %d", msg.validation)
+                << RESET_CODE << endl;
+            continue;
+        }
+
+        if (msg.teamId != brain->config->teamId) { 
+            cout << YELLOW_CODE << format("Received message from team %d, expected team %d", msg.teamId, brain->config->teamId)
+                << RESET_CODE << endl;
+            continue;
+        }
+
+        if (msg.playerId == brain->config->playerId) { 
+
+            cout << CYAN_CODE <<  format(
+                "communicationId: %d, alive: %d, ballDetected: %d ballRange: %.2f playerId: %d",
+                msg.communicationId, msg.isAlive, msg.ballDetected, msg.ballRange, msg.playerId)
+                << RESET_CODE << endl;
+            brain->data->sendId = msg.communicationId;
+            brain->data->sendTime = brain->get_clock()->now();
+            continue;
+        } 
+
+
+        double dist = sqrt(pow(brain->data->robotPoseToField.x - msg.robotPoseToField.x, 2) + pow(brain->data->robotPoseToField.y - msg.robotPoseToField.y, 2));
+        cout << GREEN_CODE << format(
+            "TMID: %d | MyPos: (%.2f, %.2f) | TmPos: (%.2f, %.2f) | Dist: %.2f", 
+            msg.playerId, 
+            brain->data->robotPoseToField.x, brain->data->robotPoseToField.y,
+            msg.robotPoseToField.x, msg.robotPoseToField.y,
+            dist
+            ) << RESET_CODE << endl;
+        auto tmIdx = msg.playerId - 1;
+
+        if (tmIdx < 0 || tmIdx >= HL_MAX_NUM_PLAYERS) { 
+            cout << YELLOW_CODE << format("Received message with invalid playerId: %d", msg.playerId) << RESET_CODE << endl;
+            continue;
+        }
+
+        // 교체 선수(Substitute) 체크 로직 -> 실제 경기에서는 교체 선수의 정보가 전술에 방해가 되므로 무시되지만 테스트 중에는 GameController 설정 없이도 통신을 확인하기 위해 주석 처리
+        // if (brain->data->penalty[tmIdx] == SUBSTITUTE) { 
+        //     cout << YELLOW_CODE << format("Communication playerId %d is substitute", msg.playerId) << RESET_CODE << endl;
+        //     continue;
+        // }
+
+
+
+        /* ---------------- 데이터 업데이트 ---------------- */
+        // 수신된 패킷 내용을 BrainData의 tmStatus에 저장 -> 이 데이터는 전략(누가 공을 찰지)과 시각화(Rerun에서 Teammate 표시)에 사용됨
+        TMStatus &tmStatus = brain->data->tmStatus[tmIdx];
+        
+        tmStatus.role = msg.playerRole == 1 ? "striker" : msg.playerRole == 2 ? "defender" : "goal_keeper"; // 역할
+        tmStatus.isAlive = msg.isAlive; // 생존 여부
+        tmStatus.ballDetected = msg.ballDetected; // 공 감지 여부
+        tmStatus.ballLocationKnown = msg.ballLocationKnown; // 공 위치 파악 여부
+        tmStatus.ballConfidence = msg.ballConfidence; // 공 신뢰도
+        tmStatus.ballRange = msg.ballRange; // 공과의 거리
+        tmStatus.cost = msg.cost; // 비용(전술용)
+        tmStatus.isLead = msg.isLead; // 리더 여부
+        tmStatus.ballPosToField = msg.ballPosToField; // 공의 필드 좌표
+        tmStatus.robotPoseToField = msg.robotPoseToField; // 로봇의 필드 좌표
+        tmStatus.kickDir = msg.kickDir; // 킥 방향
+        tmStatus.thetaRb = msg.thetaRb; // 로봇 헤딩
+        tmStatus.timeLastCom = brain->get_clock()->now(); // 마지막 통신 시간 갱신
+        tmStatus.cmd = msg.cmd; // 명령
+        tmStatus.cmdId = msg.cmdId; // 명령 ID
+
+        // 새로운 명령 수신 확인
+        if (msg.cmdId > brain->data->tmCmdId) {
+            brain->data->tmCmdId = msg.cmdId;
+            brain->data->tmReceivedCmd = msg.cmd;
+            brain->data->tmLastCmdChangeTime = brain->get_clock()->now();
+            log(format("Received new command from teammate %d: %d", msg.playerId, msg.cmd));
+        }
+
+    }
+}
+
+// 팀원 데이터 수신 종료 -> 소켓 닫기 및 스레드 조인
+void BrainCommunication::clearupCommunicationReceiver() {
+    _receive_communication_flag = false;
+    if (_communication_recv_socket >= 0) {
+        close(_communication_recv_socket);
+        _communication_recv_socket = -1;
+        cout << RED_CODE << format("Communication receive socket has been closed.")
+            << RESET_CODE << endl;
+    }
+    if (_communication_recv_thread.joinable()) {
+        _communication_recv_thread.join();
+    }
+}

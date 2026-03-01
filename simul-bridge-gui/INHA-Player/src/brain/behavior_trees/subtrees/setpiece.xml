@@ -1,0 +1,267 @@
+<root BTCPP_format="4">
+  <include path="./cam_find_and_track_ball.xml" />
+  <include path="./locate.xml" />
+  <include path="./find_ball.xml" />
+
+  <BehaviorTree ID="Setpiece">
+    <ReactiveSequence>
+      <!-- 자기 위치 추정 -->
+      <!-- <SelfLocate mode="trust_direction" />
+      <SubTree ID="Locate" _autoremap="true"/> -->
+
+        <!-- STOP -->
+        <ReactiveSequence _while="gc_game_secondary_state_info=='STOP'">
+            <SetVelocity x="0.0" y="0.0" theta="0.0" /> 
+            <!-- <SubTree ID="Locate" _autoremap="true" /> -->
+        </ReactiveSequence>
+
+        <!-- GET_READY -->
+        <!-- 1. Shoot_Out
+        <ReactiveSequence _while="gc_game_secondary_state=='SHOOT_OUT' &amp;&amp; gc_game_secondary_state_info=='GET_READY'" name="Shoot_Out">
+            <ReactiveSequence _while="gc_is_our_secondary_state">
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <SetVelocity x="0.0" y="0.0" theta="0.0" />
+                <SubTree ID="Locate" _autoremap="true" />
+            </ReactiveSequence>
+            <ReactiveSequence _while="!gc_is_our_secondary_state">
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <SetVelocity x="0.0" y="0.0" theta="0.0" />
+                <SubTree ID="Locate" _autoremap="true" />
+            </ReactiveSequence>
+        </ReactiveSequence> -->
+
+        <!-- 2. Extra_Time
+        <ReactiveSequence _while="gc_game_secondary_state=='EXTRA_TIME' &amp;&amp; gc_game_secondary_state_info=='GET_READY'" name="Extra_Time">
+            <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+            <GolieInitPos vx_limit="0.3" vy_limit="0.15"/>
+            <SubTree ID="Locate" _autoremap="true" />
+        </ReactiveSequence> -->
+
+        <!-- 3.. Direct_Free_Kick -->
+        <ReactiveSequence _while="gc_game_secondary_state=='DIRECT_FREE_KICK' &amp;&amp; gc_game_secondary_state_info=='GET_READY'" name="Direct_Free_Kick">
+            <ReactiveSequence _while="gc_is_our_secondary_state">
+                <Script code="is_race=false; is_possession=true" />
+                <SetPieceRoleManager current_role="{current_role}" />
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <ReactiveSequence _while="current_role == 'goal_keeper'">
+                    <GoToPose target_pos_x="-4.0" target_pos_y="0.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'lead_striker'">
+                    <CalcKickDir/>
+                    <SetpieceDecide decision_out="{decision}" decision_in="{decision}" decide_type="Kick"/>
+                    <SetpieceChase _while="decision=='chase'" chase_type="Kick"/>
+                    <SetpieceAdjust _while="decision=='adjust'" adjust_type="Kick"/>
+                    <SetVelocity _while="decision=='stop'" x="0.0" y="0.0" theta="0.0"/>
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'sub_striker'">
+                    <OfftheballPosition/>
+                </ReactiveSequence>
+            </ReactiveSequence>
+
+            <ReactiveSequence _while="!gc_is_our_secondary_state">
+                <Script code="is_race=false; is_possession=false" />
+                <SetPieceRoleManager current_role="{current_role}" />
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                 <ReactiveSequence _while="current_role == 'goal_keeper'">
+                    <GoToPose target_pos_x="-4.0" target_pos_y="0.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'lead_defender'">
+                    <CalcKickInPose1 block_target_x="{block_x}" block_target_y="{block_y}" block_target_theta="{block_theta}"/>
+                    <GoToPose target_pos_x="{block_x}" target_pos_y="{block_y}" target_pos_theta="{block_theta}" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'sub_defender'">
+                    <CalcKickInPose2 block_target_x="{block_x}" block_target_y="{block_y}" block_target_theta="{block_theta}"/>
+                    <GoToPose target_pos_x="{block_x}" target_pos_y="{block_y}" target_pos_theta="{block_theta}" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+            </ReactiveSequence>
+        </ReactiveSequence>
+
+        <!-- 4. Indirect_Free_Kick -->
+        <ReactiveSequence _while="gc_game_secondary_state=='INDIRECT_FREE_KICK' &amp;&amp; gc_game_secondary_state_info=='GET_READY'" name="Indirect_Free_Kick">
+            <ReactiveSequence _while="gc_is_our_secondary_state">
+                <Script code="is_race=false; is_possession=true" />
+                <SetPieceRoleManager current_role="{current_role}" />
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <ReactiveSequence _while="current_role == 'goal_keeper'">
+                    <GoToPose target_pos_x="-4.0" target_pos_y="0.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'lead_striker'">
+                    <CalcPassDir/>
+                    <SetpieceDecide decision_out="{decision}" decision_in="{decision}" decide_type="Pass"/>
+                    <SetpieceChase _while="decision=='chase'" chase_type="Pass"/>
+                    <SetpieceAdjust _while="decision=='adjust'" adjust_type="Pass"/>
+                    <SetVelocity _while="decision=='stop'" x="0.0" y="0.0" theta="0.0"/>
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'sub_striker'">
+                    <OfftheballPosition/>
+                </ReactiveSequence>
+            </ReactiveSequence>
+            
+            <ReactiveSequence _while="!gc_is_our_secondary_state">
+                <Script code="is_race=false; is_possession=false" />
+                <SetPieceRoleManager current_role="{current_role}" />
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <ReactiveSequence _while="current_role == 'goal_keeper'">
+                    <GoToPose target_pos_x="-4.0" target_pos_y="0.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'lead_defender'">
+                    <CalcKickInPose1 block_target_x="{block_x}" block_target_y="{block_y}" block_target_theta="{block_theta}"/>
+                    <GoToPose target_pos_x="{block_x}" target_pos_y="{block_y}" target_pos_theta="{block_theta}" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'sub_defender'">
+                    <CalcKickInPose2 block_target_x="{block_x}" block_target_y="{block_y}" block_target_theta="{block_theta}"/>
+                    <GoToPose target_pos_x="{block_x}" target_pos_y="{block_y}" target_pos_theta="{block_theta}" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+            </ReactiveSequence>
+        </ReactiveSequence>
+
+        <!-- 5. Penalty_Kick -->
+        <ReactiveSequence _while="gc_game_secondary_state=='PENALTY_KICK' &amp;&amp; gc_game_secondary_state_info=='GET_READY'" name="Penalty_Kick">
+            <ReactiveSequence _while="gc_is_our_secondary_state">
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <SetVelocity x="0.0" y="0.0" theta="0.0" />
+            </ReactiveSequence>
+
+            <ReactiveSequence _while="!gc_is_our_secondary_state">
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <SetVelocity x="0.0" y="0.0" theta="0.0" />
+            </ReactiveSequence>
+        </ReactiveSequence>
+
+        <!-- 6. Corner_Kick -->
+        <ReactiveSequence _while="gc_game_secondary_state=='CORNER_KICK' &amp;&amp; gc_game_secondary_state_info=='GET_READY'" name="Corner_Kick">
+            <ReactiveSequence _while="gc_is_our_secondary_state">
+                <Script code="is_race=false; is_possession=true" />
+                <SetPieceRoleManager current_role="{current_role}" />
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <ReactiveSequence _while="current_role == 'goal_keeper'">
+                    <GoToPose target_pos_x="-4.0" target_pos_y="0.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'lead_striker'">
+                    <CalcPassDir/>
+                    <SetpieceDecide decision_out="{decision}" decision_in="{decision}" decide_type="Pass"/>
+                    <SetpieceChase _while="decision=='chase'" chase_type="Pass"/>
+                    <SetpieceAdjust _while="decision=='adjust'" adjust_type="Pass"/>
+                    <SetVelocity _while="decision=='stop'" x="0.0" y="0.0" theta="0.0"/>
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'sub_striker'">
+                    <OfftheballPosition/>
+                </ReactiveSequence>
+            </ReactiveSequence>
+
+            <ReactiveSequence _while="!gc_is_our_secondary_state">
+                <Script code="is_race=false; is_possession=false" />
+                <SetPieceRoleManager current_role="{current_role}" />
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <ReactiveSequence _while="current_role == 'goal_keeper'">
+                    <GoToPose target_pos_x="-4.0" target_pos_y="0.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'lead_defender'">
+                    <CalcKickInPose1 block_target_x="{block_x}" block_target_y="{block_y}" block_target_theta="{block_theta}"/>
+                    <GoToPose target_pos_x="{block_x}" target_pos_y="{block_y}" target_pos_theta="{block_theta}" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'sub_defender'">
+                    <CalcCornertKickPose block_target_x="{block_x}" block_target_y="{block_y}" block_target_theta="{block_theta}"/>
+                    <GoToPose target_pos_x="{block_x}" target_pos_y="{block_y}" target_pos_theta="{block_theta}" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+            </ReactiveSequence>
+        </ReactiveSequence>
+
+        <!-- 7. Goal_Kick -->
+        <ReactiveSequence _while="gc_game_secondary_state=='GOAL_KICK' &amp;&amp; gc_game_secondary_state_info=='GET_READY'" name="Goal_Kick">
+            <ReactiveSequence _while="gc_is_our_secondary_state">
+                <Script code="is_race=false; is_possession=true" />
+                <SetPieceRoleManager current_role="{current_role}" />
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <ReactiveSequence _while="current_role == 'goal_keeper'">
+                    <CalcPassDir/>
+                    <SetpieceDecide decision_out="{decision}" decision_in="{decision}" decide_type="Pass"/>
+                    <SetpieceChase _while="decision=='chase'" chase_type="Pass"/>
+                    <SetpieceAdjust _while="decision=='adjust'" adjust_type="Pass"/>
+                    <SetVelocity _while="decision=='stop'" x="0.0" y="0.0" theta="0.0"/>
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'lead_striker'">
+                    <GoToPose target_pos_x="1.5" target_pos_y="1.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'sub_striker'">
+                    <GoToPose target_pos_x="1.5" target_pos_y="-1.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+            </ReactiveSequence>
+
+            <ReactiveSequence _while="!gc_is_our_secondary_state">
+                <Script code="is_race=false; is_possession=false" />
+                <SetPieceRoleManager current_role="{current_role}" />
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <ReactiveSequence _while="current_role == 'goal_keeper'">
+                    <GoToPose target_pos_x="-4.0" target_pos_y="0.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'lead_defender'">
+                    <GoToPose target_pos_x="-1.0" target_pos_y="1.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'sub_defender'">
+                    <GoToPose target_pos_x="-1.0" target_pos_y="-1.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+            </ReactiveSequence>
+        </ReactiveSequence>
+
+        <!-- 8. Throw_In -->
+        <ReactiveSequence _while="gc_game_secondary_state=='THROW_IN' &amp;&amp; gc_game_secondary_state_info=='GET_READY'" name="Throw_In">
+            <ReactiveSequence _while="gc_is_our_secondary_state">
+                <Script code="is_race=false; is_possession=true" />
+                <SetPieceRoleManager current_role="{current_role}" />
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <ReactiveSequence _while="current_role == 'goal_keeper'">
+                    <GoToPose target_pos_x="-4.0" target_pos_y="0.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'lead_striker'">
+                    <CalcPassDir/>
+                    <SetpieceDecide decision_out="{decision}" decision_in="{decision}" decide_type="Pass"/>
+                    <SetpieceChase _while="decision=='chase'" chase_type="Pass"/>
+                    <SetpieceAdjust _while="decision=='adjust'" adjust_type="Pass"/>
+                    <SetVelocity _while="decision=='stop'" x="0.0" y="0.0" theta="0.0"/>
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'sub_striker'">
+                    <OfftheballPosition/>
+                </ReactiveSequence>
+            </ReactiveSequence>
+
+            <ReactiveSequence _while="!gc_is_our_secondary_state">
+                <Script code="is_race=false; is_possession=false" />
+                <SetPieceRoleManager current_role="{current_role}" />
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <ReactiveSequence _while="current_role == 'goal_keeper'">
+                    <GoToPose target_pos_x="-4.0" target_pos_y="0.0" target_pos_theta="0.0" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'lead_defender'">
+                    <CalcKickInPose1 block_target_x="{block_x}" block_target_y="{block_y}" block_target_theta="{block_theta}"/>
+                    <GoToPose target_pos_x="{block_x}" target_pos_y="{block_y}" target_pos_theta="{block_theta}" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+                <ReactiveSequence _while="current_role == 'sub_defender'">
+                    <CalcKickInPose2 block_target_x="{block_x}" block_target_y="{block_y}" block_target_theta="{block_theta}"/>
+                    <GoToPose target_pos_x="{block_x}" target_pos_y="{block_y}" target_pos_theta="{block_theta}" turn_threshold="0.5" stop_threshold="0.1" v_limit="0.6" />
+                </ReactiveSequence>
+            </ReactiveSequence>
+        </ReactiveSequence>
+
+        <!-- 9. Free_Kick (default) -->
+        <ReactiveSequence _while="gc_game_secondary_state=='FREE_KICK' &amp;&amp; gc_game_secondary_state_info=='GET_READY'" name="Free_Kick">
+            <ReactiveSequence _while="gc_is_our_secondary_state">
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <SetVelocity x="0.0" y="0.0" theta="0.0" />
+            </ReactiveSequence>
+
+            <ReactiveSequence _while="!gc_is_our_secondary_state">
+                <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+                <SetVelocity x="0.0" y="0.0" theta="0.0" />
+            </ReactiveSequence>
+        </ReactiveSequence>
+
+        <!-- SET -->
+        <ReactiveSequence _while="gc_game_secondary_state_info=='SET'">
+            <SetVelocity x="0.0" y="0.0" theta="0.0" />
+            <SubTree ID="CamFindAndTrackBall" _autoremap="true" /> 
+        </ReactiveSequence>
+
+    </ReactiveSequence>
+  </BehaviorTree>
+</root>

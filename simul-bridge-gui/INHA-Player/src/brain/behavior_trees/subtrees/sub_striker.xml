@@ -1,0 +1,65 @@
+<root BTCPP_format="4" >
+   <include path="./cam_find_and_track_ball.xml" />
+   <include path="./locate.xml" />
+   <include path="./find_ball.xml" />
+   <!-- <include path="../strategy_layer.xml" /> -->
+
+   <BehaviorTree ID="SubStriker">
+      <ReactiveSequence>
+         <!-- 자기 위치 추정 -->
+         <!-- <SelfLocate mode="trust_direction" /> -->
+         
+         <!-- 공 위치 알 때만 로컬라이제이션(공 위치에 대한 find상태가 아님을 의미)-->
+         <!-- <SubTree ID="Locate" _autoremap="true" /> -->
+         
+         <!-- 상대 킥오프 대기 -->
+         <ReactiveSequence _while="wait_for_opponent_kickoff" name="상대 팀 킥오프 대기">
+            <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+            <SetVelocity />
+         </ReactiveSequence>
+         
+         <!-- 정상 경기 -->
+         <ReactiveSequence _while="!wait_for_opponent_kickoff" name="정상 경기">
+            
+            <!-- 공이 아웃된 경우 -->
+            <Sequence _while="ball_out">
+               <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+               <GoBackInField />
+               <!-- <SubTree ID="Locate" _autoremap="true" _while="decision!='find'" /> -->
+            </Sequence>
+            
+            <!-- 공이 인플레이 -->
+            <ReactiveSequence _while="!ball_out">
+               <ReactiveSequence>
+                  <!-- 공 추적 -->
+                  <!-- <SubTree ID="CamFindAndTrackBall" _autoremap="true" /> -->
+                  <SubTree ID="CamFindAndTrackBall" _while="decision != 'offtheball'" _autoremap="true" />
+                  <CalcKickDir />
+                </ReactiveSequence>
+                     
+                <ReactiveSequence>
+                <!-- Strategy & Tactics Layer (Parameter Injection + Decision) -->
+                <!-- <SubTree ID="StrategyTree" _autoremap="true" /> -->
+                <SubStrikerDecision decision_out="{decision}" decision_in="{decision}" />
+                </ReactiveSequence>
+                     
+                <!-- 행동 실행 -->
+                <SubTree ID="FindBall" _while="decision=='find'" _autoremap="true" />
+                
+                <!-- Off the ball -->
+                <OfftheballPosition _while="decision == 'offtheball'" dist_from_goal="2.0" />
+                
+                <!-- Pass Receive -->
+                <PassReceive _while="decision == 'receive'" />
+
+                <!-- Goal Scored Stop -->
+                <SetVelocity _while="decision == 'stop_goal'" x="0" y="0" theta="0" />
+
+                <!-- Screening -->
+                <StrikerScreening _while="decision == 'screen'"/>
+
+            </ReactiveSequence>
+         </ReactiveSequence>
+      </ReactiveSequence>
+   </BehaviorTree>
+</root>

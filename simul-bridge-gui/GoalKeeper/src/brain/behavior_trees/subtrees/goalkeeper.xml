@@ -1,0 +1,78 @@
+<root BTCPP_format="4">
+  <include path="./cam_find_and_track_ball.xml" />
+  <include path="./locate.xml" />
+  <include path="./find_ball.xml" />
+
+  <BehaviorTree ID="Goalkeeper">
+    <ReactiveSequence>
+      <!-- 자기 위치 추정 -->
+      <SelfLocate mode="trust_direction" />
+
+      <SubTree ID="Locate" _autoremap="true"/>
+
+      <!-- 상대 킥오프 대기 -->
+      <ReactiveSequence _while="wait_for_opponent_kickoff" name="상대 팀 킥오프 대기">
+        <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+        <SetVelocity />
+      </ReactiveSequence>
+
+      <!-- 정상 경기 -->
+      <ReactiveSequence _while="!wait_for_opponent_kickoff" name="정상 경기">
+        <!-- 공이 아웃된 경우 -->
+        <Sequence _while="ball_out">
+          <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+          <GoBackInField />
+          <SubTree ID="Locate" _autoremap="true"/>
+        </Sequence>
+
+        <!-- 공이 인플레이 -->
+        <ReactiveSequence _while="!ball_out">
+          <ReactiveSequence>
+            <!-- 공 추적 -->
+            <SubTree ID="CamFindAndTrackBall" _autoremap="true" />
+
+            <!-- 행동 결정 -->
+            <Sequence>
+              <ReactiveSequence>
+                <GoalieDecide decision_out="{decision}" decision_in="{decision}" />
+                <!--decision 1: find-->
+                <SubTree ID="FindBall" _while="decision=='find'" _autoremap="true" />
+              </ReactiveSequence>
+
+              <!--decision 2: normal_clearing-->
+              <ReactiveSequence _while="decision == 'normal_clearing'">
+	              <ReactiveSequence>
+                  <PredictBallTraj R_meas="0.02" sigma_a="2.0" horizon="0.8" vel_decay="0.3"/>
+		              <GoalieClearingDecide decision_out="{clearing_decision}" decision_in="{clearing_decision}" />
+		            </ReactiveSequence>
+                <Chase _while="clearing_decision == 'clearing_chase'" vx_limit="1.0" vy_limit="0.5" vtheta_limit="1.0" dist="0.15" safe_dist="0.35" />
+                <Kick _while="clearing_decision == 'clearing_kick'" speed_limit="1.2" min_msec_kick="300" msecs_stablize="100" kick_type="one_touch" />
+              </ReactiveSequence>
+
+              <!--decision 3: critical_clearing-->
+              <ReactiveSequence _while="decision == 'critical_clearing'">
+                <!-- <SetVelocity x="0.0" y="0.0" theta="0.0" /> -->
+                 <ReactiveSequence>
+                    <GoalieClearingDecide decision_out="{clearing_decision}" decision_in="{clearing_decision}" />
+                  </ReactiveSequence>
+                  <ReactiveSequence _while="clearing_decision == 'clearing_chase'">
+                    <CalcClearingDir/>
+                    <ClearingChase vx_limit="0.7" vy_limit="0.5" vtheta_limit="1.0" dist="0.15" safeDist="0.35" p_gain="2.0"/>
+                  </ReactiveSequence>
+                  <Kick _while="clearing_decision == 'clearing_kick'" speed_limit="1.2" min_msec_kick="300" msecs_stablize="100" kick_type="one_touch" />
+              </ReactiveSequence>
+
+              <!--decision 4: hold-->
+              <ReactiveSequence _while="decision == 'hold'">
+                <PredictBallTraj R_meas="0.02" sigma_a="2.0" horizon="0.8" drop_time="0.5" vel_decay="0.3"/>
+                <CalcGoliePos />
+                <GolieMove vx_high="1.0" vx_low="-0.4" vy_high="0.8" vy_low="-0.8" Kp="2.0" Kp_theta="4.0"/>
+              </ReactiveSequence>
+
+            </Sequence>
+          </ReactiveSequence>
+        </ReactiveSequence>
+      </ReactiveSequence>
+    </ReactiveSequence>
+  </BehaviorTree>
+</root>

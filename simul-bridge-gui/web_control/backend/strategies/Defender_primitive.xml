@@ -1,0 +1,13 @@
+<root main_tree_to_execute="MainTree">
+ <BehaviorTree ID="MainTree">
+  <Fallback name="Sel">
+   <Sequence name="Seq_Wall">
+    <!-- If ball is far, stay back (simulated swarm wall) -->
+    <Condition ID="CheckBallDist" op="GT" dist="1.0" />
+    <Action ID="Wait" seconds="0.5" />
+   </Sequence>
+   <!-- If ball is close, RUSH at it to block -->
+   <Action ID="Chase" />
+  </Fallback>
+ </BehaviorTree>
+</root>
