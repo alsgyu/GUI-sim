@@ -63,17 +63,19 @@ def handle_configuration(context, *args, **kwargs):
     # ns 인자: 빈 문자열이면 namespace 없이 실행, 값이 있으면 해당 namespace로 실행
     ns = context.perform_substitution(LaunchConfiguration('ns'))
 
+    # config_local.yaml이 있을 때만 로드 (없으면 player_role 등이 빈 문자열로 override되는 문제 방지)
+    params = [config_file]
+    if os.path.exists(config_local_file):
+        params.append(config_local_file)
+    params.append(config)
+
     return [
         Node(
             package ='brain',
             executable='brain_node',
             output='screen',
             namespace=ns,
-            parameters=[
-                config_file,
-                config_local_file,
-                config
-            ]
+            parameters=params
         )
     ]
 
