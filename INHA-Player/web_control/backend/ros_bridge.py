@@ -58,18 +58,24 @@ class ROSBridge(Node):
             return False
 
         # 대상 로봇 목록 결정
-        # "all" 이면 현재 알려진 시뮬 로봇 네임스페이스 전체에 발행
-        SIM_NAMESPACES = ["robot1", "robot2", "robot3"]
+        # brain이 namespace 없이 실행 중이면 /strategy/deploy
+        # ns:=robot1 등으로 실행 중이면 /robot1/strategy/deploy
+        # 현재 시뮬은 brain이 namespace 없이 실행 중이므로 "" 사용
+        SIM_NAMESPACES = [""]  # "" = no namespace → /strategy/deploy
         
         if robot_id == "all":
             targets = SIM_NAMESPACES
         else:
-            # robot_id가 이미 네임스페이스 형태(robot0 등)인 경우 그대로 사용
+            # robot_id가 명시적으로 지정된 경우 그대로 사용
             targets = [robot_id]
 
         success_count = 0
         for ns in targets:
-            topic = f"/{ns}/strategy/deploy"
+            # namespace 유무에 따라 토픽 이름 결정
+            if ns == "":
+                topic = "/strategy/deploy"
+            else:
+                topic = f"/{ns}/strategy/deploy"
 
             # 퍼블리셔가 없으면 새로 생성 (캐시)
             if topic not in self.strat_pubs:
