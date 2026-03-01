@@ -4,14 +4,9 @@
       <ReactiveSequence>
         
         <!-- 1. Self Localization (Flattened from locate.xml) -->
+        <!-- The SelfLocate nodes are unsupported, using an AlwaysSuccess dummy -->
         <Sequence name="Locate">
-           <!-- <SelfLocate mode="trust_direction" />
-           <SelfLocate1M msecs_interval="300" max_dist="2.0" max_drift="1.5" />
-           <SelfLocate2T msecs_interval="300" max_dist="2.0" max_drift="1.5" />
-           <SelfLocatePT msecs_interval="300" max_dist="2.0" max_drift="1.5" />
-           <SelfLocateLT msecs_interval="300" max_dist="2.0" max_drift="1.5" />
-           <SelfLocate2X msecs_interval="300" max_dist="2.0" max_drift="1.5" />
-           <SelfLocateBorder msecs_interval="300" max_dist="2.0" max_drift="1.5"/> -->
+           <AlwaysSuccess/>
         </Sequence>
   
         <!-- 2. Vision (Flattened from cam_find_and_track_ball.xml) -->
