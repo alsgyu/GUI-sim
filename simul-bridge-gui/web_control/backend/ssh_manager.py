@@ -216,7 +216,7 @@ except Exception as e:
     # 시스템 로그 가져오기 -> 'tail' 명령어로 launcher.log 파일의 뒷부분만 짤라서 가져온다
     def fetch_log(self, robot_id, lines=50, force_local=False):
         # Use dynamic CD chain to find launcher.log in the correct workspace
-        dynamic_cd = 'cd /home/booster/Workspace/GUI/INHA-Player 2>/dev/null || cd ~/Workspace/GUI-sim/INHA-Player 2>/dev/null || cd ~/Workspace/INHA/simul-bridge-gui/INHA-Player 2>/dev/null'
+        dynamic_cd = 'cd /home/booster/Workspace/GUI/INHA-Player 2>/dev/null || cd ~/Workspace/GUI-sim/simul-bridge-gui/INHA-Player 2>/dev/null || cd ~/Workspace/INHA/simul-bridge-gui/INHA-Player 2>/dev/null'
         cmd = f"{dynamic_cd}; tail -n {lines} launcher.log"
 
         if robot_id not in self.clients or force_local:

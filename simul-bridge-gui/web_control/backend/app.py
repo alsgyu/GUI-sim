@@ -90,7 +90,7 @@ def send_command(command: Command):
         command.cmd = command.cmd.replace("brain_nohup.log", "launcher.log")
         
         # Fallback chain for changing directories: Real Robot -> User Simulation PC -> Mac Dev Env
-        dynamic_cd = 'cd /home/booster/Workspace/GUI/INHA-Player 2>/dev/null || cd ~/Workspace/GUI-sim/INHA-Player 2>/dev/null || cd ~/Workspace/INHA/simul-bridge-gui/INHA-Player 2>/dev/null'
+        dynamic_cd = 'cd /home/booster/Workspace/GUI/INHA-Player 2>/dev/null || cd ~/Workspace/GUI-sim/simul-bridge-gui/INHA-Player 2>/dev/null || cd ~/Workspace/INHA/simul-bridge-gui/INHA-Player 2>/dev/null'
         command.cmd = command.cmd.replace("cd /home/booster/Workspace/Soccer", dynamic_cd)
             
         print("[API] Redirected output to launcher.log, switched workspace dynamically")
