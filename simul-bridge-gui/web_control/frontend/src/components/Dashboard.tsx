@@ -251,11 +251,11 @@ const DashboardComp = () => {
             <Grid container spacing={3}>
                 {/* 2. 로봇 상태 카드 목록 */}
                 {/* 연결된 로봇들의 개별 상태(배터리, 역할, 전략)를 카드 형태로 나열 */}
-                {['robot1', 'robot2', 'robot3', 'robot4', 'robot5'].map(id => {
+                {['robot_1', 'robot_2', 'robot_3', 'robot_4', 'robot_5'].map(id => {
                     const robot = robots[id] || {};
                     const isConnected = connectedRobots.includes(id) || (robot.pps && robot.pps > 0);
                     // 역할 뱃지 & 상세 상태
-                    const roleLabel = robot.role || (id === 'robot1' ? 'GK' : 'Field');
+                    const roleLabel = robot.role || (id === 'robot_1' ? 'GK' : 'Field');
 
                     return (
                         <Grid item xs={12} sm={6} md={2.4} key={id}>

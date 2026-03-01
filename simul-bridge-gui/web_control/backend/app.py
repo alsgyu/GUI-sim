@@ -219,6 +219,7 @@ def get_logs(robot_id: str):
 @app.websocket("/ws/status")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept() # 연결 수락
+    last_print = time.time()
     try:
         while True:
             # udp_monitor와 gc_monitor에서 상태를 가져와 JSON으로 묶음
@@ -234,8 +235,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 status["robots"] = {}
 
             # 2. GameController 데이터 추가
-            status["game_info"] = gc_monitor.get_status()
+            gc_data = gc_monitor.get_status()
+            status["game_info"] = gc_data
             
+            if time.time() - last_print > 2.0:
+                print(f"[WS] Sending {len(status['robots'])} robots, GC state: {gc_data.get('state')}")
+                last_print = time.time()
+
             # 클라이언트에게 JSON 전송
             await websocket.send_json(status)
             await asyncio.sleep(0.5) # 업데이트 주기 (0.5초)
