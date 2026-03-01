@@ -116,7 +116,7 @@ def deploy_strategy_endpoint(data: StrategyDeploy):
     if not connected_robots:
          print("[WARN] No robot connected via SSH. Assuming Simulation mode.")
          # 시뮬레이션: game.xml 직접 덮어쓰기
-         simul_xml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../INHA-Player/src/brain/behavior_trees/game.xml")
+         simul_xml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../INHA-Player/src/brain/behavior_trees/game.xml")
          try:
              with open(simul_xml_path, "w") as f:
                  f.write(xml_content)
