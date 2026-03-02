@@ -92,6 +92,11 @@ def send_command(command: Command):
         # Fallback chain for changing directories: Real Robot -> User Simulation PC -> Mac Dev Env
         dynamic_cd = 'cd /home/booster/Workspace/GUI/INHA-Player 2>/dev/null || cd ~/Workspace/GUI-sim/simul-bridge-gui/INHA-Player 2>/dev/null || cd ~/Workspace/INHA/simul-bridge-gui/INHA-Player 2>/dev/null'
         command.cmd = command.cmd.replace("cd /home/booster/Workspace/Soccer", dynamic_cd)
+        
+        # When forcing local simulation, use sim_start.sh instead of start.sh to avoid hardware config path crashes
+        if command.force_local:
+            command.cmd = command.cmd.replace("./scripts/start.sh", "./scripts/sim_start.sh")
+            command.cmd = command.cmd.replace("start.sh", "sim_start.sh")
             
         print("[API] Redirected output to launcher.log, switched workspace dynamically")
     stdout, stderr = ssh_manager.execute_command(command.robot_id, command.cmd, force_local=command.force_local)

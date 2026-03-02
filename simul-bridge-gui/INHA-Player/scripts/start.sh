@@ -16,7 +16,7 @@ echo "[START VISION]"
 # source ~/ThirdParty/zed-ros/install/setup.bash
 # nohup ros2 launch zed_wrapper zed_camera.launch.py camera_model:="zed2i" > zed.log 2>&1 &
 #vision_config_path:= 可以指定配置文件路径，如果不额外指定使用路径为<workspace>/install/vision/share/vision/config/
-if [ -d "/opt/booster" ]; then
+if [ -f "/opt/booster/vision.yaml" ]; then
     VISION_ARG="vision_config_path:=/opt/booster"
 else
     VISION_ARG=""
