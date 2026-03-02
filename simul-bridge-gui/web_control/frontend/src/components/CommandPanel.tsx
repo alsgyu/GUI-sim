@@ -98,7 +98,10 @@ const CommandPanel = ({ robotId, strategies, selectedStrategy, onStrategyChange,
                     variant="contained"
                     color="primary"
                     size="small"
-                    onClick={() => sendCommand(`cd /home/booster/Workspace/Soccer || echo "Dir not found"; source /opt/ros/humble/setup.bash 2>/dev/null || source /opt/ros/foxy/setup.bash 2>/dev/null; nohup ./scripts/start.sh ns:=${robotId} > brain_nohup.log 2>&1 & echo "Executed start.sh from $PWD"`)}
+                    onClick={() => {
+                        const script = forceLocal ? './scripts/sim_start.sh' : './scripts/start.sh';
+                        sendCommand(`cd /home/booster/Workspace/Soccer || echo "Dir not found"; source /opt/ros/humble/setup.bash 2>/dev/null || source /opt/ros/foxy/setup.bash 2>/dev/null; nohup ${script} ns:=${robotId} > brain_nohup.log 2>&1 & echo "Executed ${script} from $PWD"`);
+                    }}
                 >
                     START
                 </Button>

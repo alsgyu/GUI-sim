@@ -16,9 +16,15 @@ echo "[START VISION]"
 # source ~/ThirdParty/zed-ros/install/setup.bash
 # nohup ros2 launch zed_wrapper zed_camera.launch.py camera_model:="zed2i" > zed.log 2>&1 &
 #vision_config_path:= 可以指定配置文件路径，如果不额外指定使用路径为<workspace>/install/vision/share/vision/config/
-nohup ros2 launch vision launch.py vision_config_path:=/opt/booster save_data:=true > vision.log 2>&1 &
+if [ -d "/opt/booster" ]; then
+    VISION_ARG="vision_config_path:=/opt/booster"
+else
+    VISION_ARG=""
+fi
+
+nohup ros2 launch vision launch.py $VISION_ARG save_data:=true > vision.log 2>&1 &
 echo "[START BRAIN]"
-nohup ros2 launch brain launch.py vision_config_path:=/opt/booster "$@"  > brain.log 2>&1 &
+nohup ros2 launch brain launch.py $VISION_ARG "$@" > brain.log 2>&1 &
 echo "[START GAME_CONTROLLER]"
 nohup ros2 launch game_controller launch.py > game_controller.log 2>&1 &
 echo "[START SOUND]"
