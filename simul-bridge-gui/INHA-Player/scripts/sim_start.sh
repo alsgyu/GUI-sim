@@ -3,11 +3,6 @@
 cd `dirname $0`
 cd ..
 
-#./scripts/sim_stop.sh
-
-source ./install/setup.bash
-export FASTRTPS_DEFAULT_PROFILES_FILE=./configs/fastdds.xml
-
 NS=robot0
 for arg in "$@"; do
   case "$arg" in
@@ -15,9 +10,14 @@ for arg in "$@"; do
   esac
 done
 
-# Extract player ID from namespace (e.g. robot1 -> 1)
-PLAYER_ID="${NS#robot}"
-if ! [[ "$PLAYER_ID" =~ ^[0-9]+$ ]]; then
+source ./install/setup.bash
+export FASTRTPS_DEFAULT_PROFILES_FILE=./configs/fastdds.xml
+
+./scripts/sim_stop.sh $NS
+
+# Extract player ID from namespace (e.g. robot1 -> 1, robot_1 -> 1)
+PLAYER_ID=$(echo "$NS" | tr -dc '0-9')
+if [ -z "$PLAYER_ID" ]; then
     PLAYER_ID=1
 fi
 
@@ -28,7 +28,6 @@ else
     ROLE="striker"
 fi
 
-# Only launch GameController and Joystick once (for robot1) to avoid Unicast UDP conflicts
 if [ "$PLAYER_ID" -eq 1 ]; then
     nohup ros2 launch game_controller launch.py > game_controller.log 2>&1 &
     nohup ros2 run joy joy_node --ros-args -p autorepeat_rate:=0.0 > joystick.log 2>&1 &
