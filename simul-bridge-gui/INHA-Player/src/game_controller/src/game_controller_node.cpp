@@ -61,9 +61,12 @@ void GameControllerNode::init()
 
     int opt = 1;
     setsockopt(_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-#ifdef SO_REUSEPORT
-    setsockopt(_socket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
-#endif
+
+    // Note: DO NOT use SO_REUSEPORT here. 
+    // Linux SO_REUSEPORT load-balances incoming UDP packets across sockets.
+    // We want ALL GameController nodes to receive the SAME broadcast packet!
+    // SO_REUSEADDR is sufficient for allowing multiple processes to bind to 
+    // the same port and receive broadcasts on it.
 
     // 初始化地址
     sockaddr_in addr;
