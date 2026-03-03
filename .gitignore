@@ -1,3 +1,2 @@
 # Firebase / GCP secrets
-*.json
 firebase-adminsdk-*.json
