@@ -109,7 +109,7 @@ const CommandPanel = ({ robotId, strategies, selectedStrategy, onStrategyChange,
                     variant="contained"
                     color="error"
                     size="small"
-                    onClick={() => sendCommand('pkill -f brain_node')}
+                    onClick={() => sendCommand(`pkill -9 -f "brain_node.*__ns:=/${robotId}" && pkill -9 -f "vision_node.*__ns:=/${robotId}"`)}
                 >
                     STOP
                 </Button>
