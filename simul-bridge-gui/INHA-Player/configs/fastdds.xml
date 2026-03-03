@@ -18,7 +18,7 @@
             <userTransports>
                 <transport_id>UdpTransport</transport_id>
             </userTransports>
-            <useBuiltinTransports>false</useBuiltinTransports>
+            <useBuiltinTransports>true</useBuiltinTransports>
         </rtps>
     </participant>
 </profiles>
