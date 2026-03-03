@@ -52,7 +52,8 @@ const CommandPanel = ({ robotId, strategies, selectedStrategy, onStrategyChange,
             const res = await axios.get(`http://localhost:8000/api/strategies/${selectedStrategy}`);
             await axios.post('http://localhost:8000/api/deploy_strategy', {
                 robot_id: robotId,
-                strategy_xml: res.data.xml
+                strategy_xml: res.data.xml,
+                force_local: forceLocal
             });
             alert(`[SUCCESS] ${selectedStrategy} -> ${robotId}`);
         } catch (e: any) {

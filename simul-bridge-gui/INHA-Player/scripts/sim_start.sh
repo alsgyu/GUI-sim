@@ -28,8 +28,11 @@ else
     ROLE="striker"
 fi
 
-nohup ros2 launch game_controller launch.py > game_controller.log 2>&1 &
-nohup ros2 run joy joy_node --ros-args -p autorepeat_rate:=0.0 > joystick.log 2>&1 &
+# Only launch GameController and Joystick once (for robot1) to avoid Unicast UDP conflicts
+if [ "$PLAYER_ID" -eq 1 ]; then
+    nohup ros2 launch game_controller launch.py > game_controller.log 2>&1 &
+    nohup ros2 run joy joy_node --ros-args -p autorepeat_rate:=0.0 > joystick.log 2>&1 &
+fi
 
 nohup ros2 run vision vision_node ./src/vision/config/vision.yaml --ros-args -p use_sim_time:=true -r __ns:=/${NS} > vision.log 2>&1 &
 nohup ros2 launch brain launch.py "$@" sim:=true player_id:=$PLAYER_ID role:=$ROLE > brain.log 2>&1 &

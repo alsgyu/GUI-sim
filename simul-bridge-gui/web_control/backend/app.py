@@ -108,6 +108,7 @@ def send_command(command: Command):
 class StrategyDeploy(BaseModel):
     robot_id: str = "all" # 특정 로봇 ID 또는 전체 로봇
     strategy_xml: str     # 배포할 Behavior Tree XML 내용
+    force_local: bool = False # 시뮬레이션 환경 등에 직접 배포할지 여부
 
 # 전략 배포 (Hot-Swap) -> 토글의 전략(XML)을 로봇에게 전송하여 즉시 적용시킨다 -> 로봇 내부에서 'ros2 topic pub' 명령을 실행하는 방식으로 동작한다
 @app.post("/api/deploy_strategy")
@@ -119,9 +120,13 @@ def deploy_strategy_endpoint(data: StrategyDeploy):
     # 2. 현재 SSH로 연결된 로봇 목록 확인
     connected_robots = list(ssh_manager.clients.keys())
     
-    # 연결된 로봇이 없으면 경고 출력
-    if not connected_robots:
-         print("[WARN] No robot connected via SSH. Assuming Simulation mode.")
+    # 연결된 로봇이 없거나 force_local이 참이면 시뮬레이션 모드로 간주하고 로컬 파일을 덮어쓴다
+    if not connected_robots or data.force_local:
+         if data.force_local:
+             print(f"[SIM] Force Local deployment enabled for {data.robot_id}")
+         else:
+             print("[WARN] No robot connected via SSH. Assuming Simulation mode.")
+             
          # 시뮬레이션: game.xml 직접 덮어쓰기 (src 원본 및 install 실행경로 모두)
          src_xml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../INHA-Player/src/brain/behavior_trees/game.xml")
          install_xml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../INHA-Player/install/brain/share/brain/behavior_trees/game.xml")
