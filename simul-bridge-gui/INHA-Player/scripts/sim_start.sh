@@ -15,8 +15,25 @@ for arg in "$@"; do
   esac
 done
 
-nohup ros2 launch game_controller launch.py > game_controller.log 2>&1 &
-nohup ros2 run joy joy_node --ros-args -p autorepeat_rate:=0.0 > joystick.log 2>&1 &
+# Extract player ID from namespace (e.g. robot1 -> 1)
+PLAYER_ID="${NS#robot}"
+if ! [[ "$PLAYER_ID" =~ ^[0-9]+$ ]]; then
+    PLAYER_ID=1
+fi
+
+# Assign role based on player ID
+if [ "$PLAYER_ID" -eq 1 ]; then
+    ROLE="goal_keeper"
+else
+    ROLE="striker"
+fi
+
+# Only launch GameController and Joystick once (typically for robot1) to avoid port/IP conflicts
+if [ "$PLAYER_ID" -eq 1 ]; then
+    nohup ros2 launch game_controller launch.py > game_controller.log 2>&1 &
+    nohup ros2 run joy joy_node --ros-args -p autorepeat_rate:=0.0 > joystick.log 2>&1 &
+fi
+
 nohup ros2 run vision vision_node ./src/vision/config/vision.yaml --ros-args -p use_sim_time:=true -r __ns:=/${NS} > vision.log 2>&1 &
-nohup ros2 launch brain launch.py "$@" sim:=true > brain.log 2>&1 &
+nohup ros2 launch brain launch.py "$@" sim:=true player_id:=$PLAYER_ID role:=$ROLE > brain.log 2>&1 &
 # ./scripts/sim_start.sh ns:=robot0

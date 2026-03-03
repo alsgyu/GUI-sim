@@ -41,6 +41,13 @@ def handle_configuration(context, *args, **kwargs):
     role = context.perform_substitution(LaunchConfiguration('role'))
     if not role == '':
         config['game.player_role'] = role
+        
+    player_id = context.perform_substitution(LaunchConfiguration('player_id'))
+    if not player_id == '':
+        try:
+            config['game.player_id'] = int(player_id)
+        except ValueError:
+            pass
 
     sim = context.perform_substitution(LaunchConfiguration('sim'))
     if sim in ['true', 'True', '1']:
@@ -94,6 +101,11 @@ def generate_launch_description():
             'role', 
             default_value='',
             description='// config.yaml의 game.player_role을 덮어쓰려면 launch 시 role:=striker로 지정'
+        ),
+        DeclareLaunchArgument(
+            'player_id',
+            default_value='',
+            description='// config.yaml의 game.player_id를 덮어쓰려면 launch 시 player_id:=1 로 지정'
         ),
         DeclareLaunchArgument(
             'sim', 
