@@ -217,7 +217,8 @@ except Exception as e:
     def fetch_log(self, robot_id, lines=50, force_local=False):
         # Use dynamic CD chain to find launcher.log in the correct workspace
         dynamic_cd = 'cd /home/booster/Workspace/GUI/INHA-Player 2>/dev/null || cd ~/Workspace/GUI-sim/simul-bridge-gui/INHA-Player 2>/dev/null || cd ~/Workspace/INHA/simul-bridge-gui/INHA-Player 2>/dev/null'
-        cmd = f"{dynamic_cd}; tail -n {lines} launcher.log"
+        # Use namespaced launcher log for isolation in simulation/multi-robot environments
+        cmd = f"{dynamic_cd}; if [ -f launcher_{robot_id}.log ]; then tail -n {lines} launcher_{robot_id}.log; else tail -n {lines} launcher.log; fi"
 
         if robot_id not in self.clients or force_local:
             if not self.clients or force_local:

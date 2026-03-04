@@ -86,8 +86,8 @@ def send_command(command: Command):
     
     # 로그 출력 파일 생성
     if "brain_nohup.log" in command.cmd:
-        # Absolute path hardcoding breaks simulation computers. Write to relative launcher.log
-        command.cmd = command.cmd.replace("brain_nohup.log", "launcher.log")
+        # Absolute path hardcoding breaks simulation computers. Write to namespaced launcher_${robot_id}.log
+        command.cmd = command.cmd.replace("brain_nohup.log", f"launcher_{command.robot_id}.log")
         
         # Fallback chain for changing directories: Real Robot -> User Simulation PC -> Mac Dev Env
         dynamic_cd = 'cd /home/booster/Workspace/GUI/INHA-Player 2>/dev/null || cd ~/Workspace/GUI-sim/simul-bridge-gui/INHA-Player 2>/dev/null || cd ~/Workspace/INHA/simul-bridge-gui/INHA-Player 2>/dev/null'
@@ -95,10 +95,11 @@ def send_command(command: Command):
         
         # When forcing local simulation, use sim_start.sh instead of start.sh to avoid hardware config path crashes
         if command.force_local:
-            command.cmd = command.cmd.replace("./scripts/start.sh", "./scripts/sim_start.sh")
+            # Inject tree parameter and robot ID to isolate simulation instances
+            command.cmd = command.cmd.replace("./scripts/start.sh", f"./scripts/sim_start.sh ns:={command.robot_id} tree:={command.robot_id}.xml")
             command.cmd = command.cmd.replace("start.sh", "sim_start.sh")
             
-        print("[API] Redirected output to launcher.log, switched workspace dynamically")
+        print(f"[API] Isolated output to launcher_{command.robot_id}.log, using {command.robot_id}.xml")
     stdout, stderr = ssh_manager.execute_command(command.robot_id, command.cmd, force_local=command.force_local)
     if stdout is None:
         raise HTTPException(status_code=500, detail=stderr)
@@ -127,9 +128,10 @@ def deploy_strategy_endpoint(data: StrategyDeploy):
          else:
              print("[WARN] No robot connected via SSH. Assuming Simulation mode.")
              
-         # 시뮬레이션: game.xml 직접 덮어쓰기 (src 원본 및 install 실행경로 모두)
-         src_xml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../INHA-Player/src/brain/behavior_trees/game.xml")
-         install_xml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../INHA-Player/install/brain/share/brain/behavior_trees/game.xml")
+         # Use namespaced XML file to avoid collisions between multiple sim robots
+         xml_filename = f"{data.robot_id}.xml" if data.robot_id != "all" else "game.xml"
+         src_xml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"../../INHA-Player/src/brain/behavior_trees/{xml_filename}")
+         install_xml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"../../INHA-Player/install/brain/share/brain/behavior_trees/{xml_filename}")
          
          try:
              # src 반영 (소스코드 보존용)
@@ -142,7 +144,7 @@ def deploy_strategy_endpoint(data: StrategyDeploy):
                      f.write(xml_content)
              
              print(f"[SIM] Deployed directly to {src_xml_path} and {install_xml_path}")
-             return {"status": "success", "message": "Strategy deployed to simulation (game.xml). Please restart sim_start.sh to apply."}
+             return {"status": "success", "message": f"Strategy deployed to simulation ({xml_filename})."}
          except Exception as e:
              print(f"[SIM] Failed to write game.xml: {e}")
              return {"status": "error", "message": f"Strategy deployment failed in simulation: {e}"}

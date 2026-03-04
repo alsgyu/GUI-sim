@@ -4,9 +4,11 @@ cd `dirname $0`
 cd ..
 
 NS=robot0
+TREE=game.xml
 for arg in "$@"; do
   case "$arg" in
     ns:=*) NS="${arg#ns:=}" ;;
+    tree:=*) TREE="${arg#tree:=}" ;;
   esac
 done
 
@@ -28,11 +30,13 @@ else
     ROLE="striker"
 fi
 
-if [ "$PLAYER_ID" -eq 1 ]; then
-    nohup ros2 launch game_controller launch.py > game_controller.log 2>&1 &
-    nohup ros2 run joy joy_node --ros-args -p autorepeat_rate:=0.0 > joystick.log 2>&1 &
-fi
+# Start GC Bridge and Joy node with namespace for all robots to avoid collisions in simulation
+nohup ros2 launch game_controller launch.py --ros-args -r __ns:=/${NS} > game_controller_${NS}.log 2>&1 &
+nohup ros2 run joy joy_node --ros-args -p autorepeat_rate:=0.0 -r __ns:=/${NS} > joystick_${NS}.log 2>&1 &
 
-nohup ros2 run vision vision_node ./src/vision/config/vision.yaml --ros-args -p use_sim_time:=true -r __ns:=/${NS} > vision.log 2>&1 &
-nohup ros2 launch brain launch.py "$@" sim:=true player_id:=$PLAYER_ID role:=$ROLE > brain.log 2>&1 &
+nohup ros2 run vision vision_node ./src/vision/config/vision.yaml --ros-args -p use_sim_time:=true -r __ns:=/${NS} > vision_${NS}.log 2>&1 &
+nohup ros2 launch brain launch.py "$@" ns:=${NS} tree:=${TREE} sim:=true player_id:=$PLAYER_ID role:=$ROLE > brain_${NS}.log 2>&1 &
+# Create a symlink or log copy for the GUI's expected launcher.log
+ln -sf brain_${NS}.log launcher_${NS}.log
+
 # ./scripts/sim_start.sh ns:=robot0
