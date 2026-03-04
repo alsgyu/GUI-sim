@@ -144,7 +144,14 @@ def deploy_strategy_endpoint(data: StrategyDeploy):
                      f.write(xml_content)
              
              print(f"[SIM] Deployed directly to {src_xml_path} and {install_xml_path}")
-             return {"status": "success", "message": f"Strategy deployed to simulation ({xml_filename})."}
+             
+             # Also trigger Hot-Swap via ROS topic if available
+             from .ros_bridge import ros_bridge
+             if ros_bridge:
+                 ros_bridge.publish_strategy(data.robot_id, xml_content)
+                 print(f"[SIM] Triggered Hot-Swap via ROS for {data.robot_id}")
+             
+             return {"status": "success", "message": f"Strategy deployed to simulation ({xml_filename}) and triggered Hot-Swap."}
          except Exception as e:
              print(f"[SIM] Failed to write game.xml: {e}")
              return {"status": "error", "message": f"Strategy deployment failed in simulation: {e}"}

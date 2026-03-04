@@ -97,7 +97,7 @@
                         <!-- 4. 일반 경기 (config에서 미리 설정된 role에 따라 다른 서브 트리 실행) -->
                         <ReactiveSequence _while="gc_game_secondary_state == 'NONE'" name="일반 경기">
                             <SubTree ID="Striker" _autoremap="true" _while="player_role == 'striker'" />
-                            <!-- <SubTree ID="Goalie" _autoremap="true" _while="player_role == 'goal_keeper'" /> -->
+                            <SubTree ID="Goalie" _autoremap="true" _while="player_role == 'goal_keeper'" />
                             <SubTree ID="Defender" _autoremap="true" _while="player_role == 'defender'" />
                         </ReactiveSequence>
                         

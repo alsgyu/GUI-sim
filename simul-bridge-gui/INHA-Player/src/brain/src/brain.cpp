@@ -180,6 +180,7 @@ void Brain::init(){
     // depth 이미지
     string depthTopic = get_parameter("vision.depth_image_topic").as_string();
     depthImageSubscription = create_subscription<sensor_msgs::msg::Image>(depthTopic, SUB_STATE_QUEUE_SIZE, bind(&Brain::depthImageCallback, this, _1));
+    strategySubscription = create_subscription<std_msgs::msg::String>("strategy/deploy", 10, bind(&Brain::strategyCallback, this, _1));
 
     // sound
     pubSoundPlay = create_publisher<std_msgs::msg::String>("play_sound", 10);
@@ -206,6 +207,33 @@ void Brain::init(){
     calibrateOdom(x, y, theta);
     tree->setEntry<bool>("odom_calibrated", true);
     log->log("debug/gt_pose", rerun::TextLog(format("GT: x=%.2f y=%.2f th=%.1f", x, y, theta)));
+}
+
+void Brain::strategyCallback(const std_msgs::msg::String::SharedPtr msg) {
+    RCLCPP_INFO(this->get_logger(), "Received new strategy XML. Hot-swapping...");
+    
+    // Save to disk to persist the change
+    try {
+        ofstream ofs(config->treeFilePath);
+        if (ofs.is_open()) {
+            ofs << msg->data;
+            ofs.close();
+        } else {
+            RCLCPP_ERROR(this->get_logger(), "Failed to open tree file for writing: %s", config->treeFilePath.c_str());
+        }
+    } catch (const exception &e) {
+        RCLCPP_ERROR(this->get_logger(), "Exception while saving strategy XML: %s", e.what());
+    }
+
+    // Re-initialize the behavior tree
+    try {
+        tree->init();
+        RCLCPP_INFO(this->get_logger(), "Behavior tree re-initialized successfully.");
+        speak("Strategy updated");
+    } catch (const exception &e) {
+        RCLCPP_ERROR(this->get_logger(), "Failed to re-initialize behavior tree: %s", e.what());
+        speak("Strategy error");
+    }
 }
 
 // config 로드

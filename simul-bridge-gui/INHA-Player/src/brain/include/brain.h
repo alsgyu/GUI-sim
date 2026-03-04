@@ -122,6 +122,7 @@ public:
     void depthImageCallback(const sensor_msgs::msg::Image &msg);
     void imageCallback(const sensor_msgs::msg::Image &msg);
     void gtPoseCallback(const geometry_msgs::msg::PoseStamped &msg);
+    void strategyCallback(const std_msgs::msg::String::SharedPtr msg);
 
     void logObstacles();
     void logVisionBox(rclcpp::Time timestamp);
@@ -182,7 +183,8 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr depthImageSubscription;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr imageSubscription;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr gtPoseSubscription;
-
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr strategySubscription;
+    
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pubSoundPlay;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pubSpeak;
     rclcpp::TimerBase::SharedPtr timer_;
